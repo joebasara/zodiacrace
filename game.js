@@ -15,6 +15,12 @@ const laneLeft = document.getElementById("lane-left");
 const laneRight = document.getElementById("lane-right");
 
 /* ===============================
+   POSITION LANES FOR THUMBS
+================================ */
+laneLeft.style.left = "5vw";
+laneRight.style.right = "5vw";
+
+/* ===============================
    STATE
 ================================ */
 let beatmap = [];
@@ -22,7 +28,7 @@ let activeBeats = [];
 let started = false;
 
 /* ===============================
-   BUILD BEATMAP FROM VIDEO LENGTH
+   BUILD BEATMAP FROM VIDEO
 ================================ */
 function buildBeatmap(durationMs) {
   beatmap = [];
@@ -93,16 +99,7 @@ function handleTap(lane) {
    MAIN LOOP
 ================================ */
 function update() {
-  if (!started && video.readyState >= 2) {
-    buildBeatmap(video.duration * 1000);
-    video.play();
-    started = true;
-  }
-
-  if (!started) {
-    requestAnimationFrame(update);
-    return;
-  }
+  if (!started) return;
 
   const songTime = video.currentTime * 1000;
 
@@ -118,7 +115,9 @@ function update() {
   activeBeats = activeBeats.filter(b => {
     const progress = (songTime - b.spawnTime) / FALL_DURATION;
     const laneHeight = b.el.parentElement.clientHeight;
-    const hitY = laneHeight * 0.85;
+
+    // 🔥 HIT LINE NOW AT CENTER
+    const hitY = laneHeight * 0.5;
 
     // Miss
     if (!b.hit && songTime - b.hitTime > HIT_WINDOW) {
@@ -141,19 +140,39 @@ function update() {
 }
 
 /* ===============================
+   START GAME (USER GESTURE ONLY)
+================================ */
+function startGame() {
+  if (started) return;
+
+  video.muted = false;
+
+  video.play().then(() => {
+    buildBeatmap(video.duration * 1000);
+    started = true;
+
+    const startScreen = document.getElementById("start-screen");
+    if (startScreen) startScreen.remove();
+
+    requestAnimationFrame(update);
+  }).catch(err => {
+    console.warn("Play blocked:", err);
+  });
+}
+
+/* ===============================
    EVENTS
 ================================ */
 document.body.addEventListener("touchstart", e => {
+  startGame();
   const x = e.touches[0].clientX;
   handleTap(x < window.innerWidth / 2 ? 0 : 1);
-});
+}, { passive: false });
+
+document.body.addEventListener("click", startGame, { once: true });
 
 document.body.addEventListener("keydown", e => {
+  startGame();
   if (e.key === "ArrowLeft") handleTap(0);
   if (e.key === "ArrowRight") handleTap(1);
 });
-
-/* ===============================
-   START
-================================ */
-requestAnimationFrame(update);
