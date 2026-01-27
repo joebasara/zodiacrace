@@ -1,101 +1,136 @@
-const video = document.getElementById("video");
-const lanes = document.querySelectorAll(".lane");
+/* ===============================
+   CONFIG
+================================ */
+const FALL_DURATION = 1200;     // ms
+const HIT_WINDOW = 300;         // ± ms
+const START_OFFSET = 0;
 
-const FALL_DURATION = 2000; // ms to fall into hit circle
-const HIT_WINDOW = 300;    // timing forgiveness (ms)
-const OFFSET = 400;        // sync offset (ms)
-
-const beats = [
-  { time: 1.0, lane: 0 },
-  { time: 1.5, lane: 1 },
-  { time: 2.0, lane: 0 },
-  { time: 2.5, lane: 1 },
-  { time: 3.0, lane: 0 },
-  { time: 3.5, lane: 1 }
+/* ===============================
+   BEATMAP (replace with recorded map)
+================================ */
+const beatmap = [
+  { time: 800, lane: 0 },
+  { time: 1200, lane: 1 },
+  { time: 2000, lane: 0 },
+  { time: 2300, lane: 1 },
+  { time: 3000, lane: 0 }
 ];
 
+/* ===============================
+   STATE
+================================ */
+const video = document.getElementById("bgVideo");
+let videoStarted = false;
 let activeBeats = [];
-let started = false;
 
+/* ===============================
+   START GAME (user gesture)
+================================ */
+document.body.addEventListener("touchstart", startGame, { once: true });
+document.body.addEventListener("click", startGame, { once: true });
+
+function startGame() {
+  video.play().then(() => {
+    videoStarted = true;
+    document.getElementById("startScreen").remove();
+    requestAnimationFrame(update);
+  }).catch(err => console.error(err));
+}
+
+/* ===============================
+   SPAWN BEAT
+================================ */
 function spawnBeat(beat) {
-  const lane = lanes[beat.lane];
+  const laneEl = beat.lane === 0
+    ? document.getElementById("lane-left")
+    : document.getElementById("lane-right");
+
   const el = document.createElement("div");
   el.className = "beat";
   el.style.top = "-70px";
-  lane.appendChild(el);
+
+  laneEl.appendChild(el);
 
   activeBeats.push({
-    ...beat,
     el,
-    spawnTime: beat.time * 1000 - FALL_DURATION
+    laneEl,
+    spawnTime: beat.time - FALL_DURATION,
+    hitTime: beat.time,
+    hit: false
   });
 }
 
+/* ===============================
+   UPDATE LOOP
+================================ */
 function update() {
-  if (!started) return;
+  if (!videoStarted) return;
 
-  const now = video.currentTime * 1000;
+  const songTime = video.currentTime * 1000 + START_OFFSET;
 
-  beats.forEach(b => {
-    if (!b.spawned && now >= b.time * 1000 - FALL_DURATION - OFFSET) {
-      spawnBeat(b);
-      b.spawned = true;
+  // Spawn beats
+  for (const beat of beatmap) {
+    if (!beat.spawned && songTime >= beat.time - FALL_DURATION) {
+      spawnBeat(beat);
+      beat.spawned = true;
     }
-  });
+  }
 
-  activeBeats.forEach(b => {
-    const progress = (now - b.spawnTime - OFFSET) / FALL_DURATION;
-    if (progress < 0 || progress > 1.2) return;
+  // Update beats
+  activeBeats = activeBeats.filter(b => {
+    const progress = (songTime - b.spawnTime) / FALL_DURATION;
 
-    const laneHeight = lanes[b.lane].clientHeight;
+    if (progress >= 1.2) {
+      if (!b.hit) b.el.classList.add("miss");
+      setTimeout(() => b.el.remove(), 150);
+      return false;
+    }
+
+    const laneHeight = b.laneEl.clientHeight;
     const hitY = laneHeight * 0.5;
     const startY = -70;
-    const travelDistance = hitY - startY;
+    const y = startY + progress * (hitY - startY);
 
-    const y = startY + progress * travelDistance;
     b.el.style.top = y + "px";
+    return true;
   });
 
   requestAnimationFrame(update);
 }
 
-function handleTap(laneIndex) {
-  const now = video.currentTime * 1000;
+/* ===============================
+   INPUT / HIT DETECTION
+================================ */
+document.body.addEventListener("touchstart", e => {
+  handleTap(e.touches[0].clientX);
+});
 
-  for (let i = 0; i < activeBeats.length; i++) {
-    const b = activeBeats[i];
-    if (b.lane !== laneIndex || b.hit) continue;
+document.body.addEventListener("click", e => {
+  handleTap(e.clientX);
+});
 
-    const diff = Math.abs(now - b.time * 1000);
+function handleTap(x) {
+  if (!videoStarted) return;
+
+  const lane = x < window.innerWidth / 2 ? 0 : 1;
+  const songTime = video.currentTime * 1000;
+
+  for (const b of activeBeats) {
+    if (b.hit || b.laneEl.id !== (lane === 0 ? "lane-left" : "lane-right")) continue;
+
+    const diff = Math.abs(songTime - b.hitTime);
 
     const beatRect = b.el.getBoundingClientRect();
-    const circleRect = lanes[laneIndex]
-      .querySelector(".hit-circle")
-      .getBoundingClientRect();
+    const circleRect = b.laneEl.querySelector(".hit-circle").getBoundingClientRect();
 
-    const beatCenterY = beatRect.top + beatRect.height / 2;
-    const circleCenterY = circleRect.top + circleRect.height / 2;
-    const distance = Math.abs(beatCenterY - circleCenterY);
+    const beatCenter = beatRect.top + beatRect.height / 2;
+    const circleCenter = circleRect.top + circleRect.height / 2;
+    const distance = Math.abs(beatCenter - circleCenter);
 
     if (diff <= HIT_WINDOW && distance < circleRect.height / 2) {
       b.hit = true;
       b.el.classList.add("hit");
-
-      setTimeout(() => b.el.remove(), 200);
       return;
     }
   }
 }
-
-document.querySelectorAll(".tap-zone").forEach(zone => {
-  zone.addEventListener("pointerdown", () => {
-    if (!started) {
-      video.muted = false;   // REQUIRED for browser audio unlock
-      video.play();
-      started = true;
-      update();
-    }
-
-    handleTap(Number(zone.dataset.lane));
-  });
-});
