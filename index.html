@@ -64,7 +64,7 @@ html, body {
 #lane-left { left: 5vw; }
 #lane-right { right: 5vw; }
 
-/* Hit line */
+/* Hit line (center) */
 .hit-line {
   position: absolute;
   top: 50%;
@@ -92,13 +92,12 @@ html, body {
 <body>
 <div id="game">
 
-  <!-- ✅ THIS WAS MISSING -->
   <video
     id="bg-video"
     src="race.mp4"
     preload="auto"
-    playsinline
     muted
+    playsinline
   ></video>
 
   <div id="lane-left" class="lane">
