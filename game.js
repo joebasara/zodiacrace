@@ -1,12 +1,11 @@
 /* ===============================
-   CONFIG (175 BPM)
+   CONFIG
 ================================ */
-const BPM = 175;
-const BEAT_INTERVAL = 60000 / BPM; // ≈ 342.86ms
+const BPM = 144;
+const BEAT_INTERVAL = 60000 / BPM;
 const OFFSET = 800;
 const FALL_DURATION = 1200;
 const HIT_WINDOW = 300;
-const BEAT_SIZE = 60;
 
 /* ===============================
    ELEMENTS
@@ -16,6 +15,12 @@ const laneLeft = document.getElementById("lane-left");
 const laneRight = document.getElementById("lane-right");
 
 /* ===============================
+   POSITION LANES FOR THUMBS
+================================ */
+laneLeft.style.left = "5vw";
+laneRight.style.right = "5vw";
+
+/* ===============================
    STATE
 ================================ */
 let beatmap = [];
@@ -23,7 +28,7 @@ let activeBeats = [];
 let started = false;
 
 /* ===============================
-   BUILD BEATMAP
+   BUILD BEATMAP FROM VIDEO
 ================================ */
 function buildBeatmap(durationMs) {
   beatmap = [];
@@ -42,26 +47,21 @@ function buildBeatmap(durationMs) {
 }
 
 /* ===============================
-   SPAWN BEAT
+   SPAWN
 ================================ */
 function spawnBeat(beat) {
   const laneEl = beat.lane === 0 ? laneLeft : laneRight;
-  const hitLine = laneEl.querySelector(".hit-line");
 
   const el = document.createElement("div");
   el.className = "beat";
-  el.style.top = "-80px";
+  el.style.top = "-70px";
   laneEl.appendChild(el);
-
-  const hitY =
-    hitLine.offsetTop + hitLine.offsetHeight / 2;
 
   activeBeats.push({
     el,
     lane: beat.lane,
     spawnTime: beat.time - FALL_DURATION,
     hitTime: beat.time,
-    hitY,
     hit: false
   });
 }
@@ -103,6 +103,7 @@ function update() {
 
   const songTime = video.currentTime * 1000;
 
+  // Spawn beats
   for (const beat of beatmap) {
     if (!beat.spawned && songTime >= beat.time - FALL_DURATION) {
       spawnBeat(beat);
@@ -110,9 +111,15 @@ function update() {
     }
   }
 
+  // Update beats
   activeBeats = activeBeats.filter(b => {
     const progress = (songTime - b.spawnTime) / FALL_DURATION;
+    const laneHeight = b.el.parentElement.clientHeight;
 
+    // 🔥 HIT LINE NOW AT CENTER
+    const hitY = laneHeight * 0.5;
+
+    // Miss
     if (!b.hit && songTime - b.hitTime > HIT_WINDOW) {
       b.hit = true;
       b.el.classList.add("miss");
@@ -125,8 +132,7 @@ function update() {
       return false;
     }
 
-    const y = progress * b.hitY - BEAT_SIZE / 2;
-    b.el.style.top = `${y}px`;
+    b.el.style.top = (progress * hitY) + "px";
     return true;
   });
 
@@ -134,17 +140,23 @@ function update() {
 }
 
 /* ===============================
-   START GAME (REQUIRED USER TAP)
+   START GAME (USER GESTURE ONLY)
 ================================ */
 function startGame() {
   if (started) return;
 
+  video.muted = false;
+
   video.play().then(() => {
     buildBeatmap(video.duration * 1000);
     started = true;
+
+    const startScreen = document.getElementById("start-screen");
+    if (startScreen) startScreen.remove();
+
     requestAnimationFrame(update);
   }).catch(err => {
-    console.warn("Playback blocked:", err);
+    console.warn("Play blocked:", err);
   });
 }
 
