@@ -1,178 +1,101 @@
-/* ===============================
-   CONFIG
-================================ */
-const BPM = 144;
-const BEAT_INTERVAL = 60000 / BPM;
-const OFFSET = 800;
-const FALL_DURATION = 1200;
-const HIT_WINDOW = 300;
+const video = document.getElementById("video");
+const lanes = document.querySelectorAll(".lane");
 
-/* ===============================
-   ELEMENTS
-================================ */
-const video = document.getElementById("bg-video");
-const laneLeft = document.getElementById("lane-left");
-const laneRight = document.getElementById("lane-right");
+const FALL_DURATION = 2000; // ms to fall into hit circle
+const HIT_WINDOW = 300;    // timing forgiveness (ms)
+const OFFSET = 400;        // sync offset (ms)
 
-/* ===============================
-   POSITION LANES FOR THUMBS
-================================ */
-laneLeft.style.left = "5vw";
-laneRight.style.right = "5vw";
+const beats = [
+  { time: 1.0, lane: 0 },
+  { time: 1.5, lane: 1 },
+  { time: 2.0, lane: 0 },
+  { time: 2.5, lane: 1 },
+  { time: 3.0, lane: 0 },
+  { time: 3.5, lane: 1 }
+];
 
-/* ===============================
-   STATE
-================================ */
-let beatmap = [];
 let activeBeats = [];
 let started = false;
 
-/* ===============================
-   BUILD BEATMAP FROM VIDEO
-================================ */
-function buildBeatmap(durationMs) {
-  beatmap = [];
-  let time = OFFSET;
-  let i = 0;
-
-  while (time < durationMs) {
-    beatmap.push({
-      time,
-      lane: i % 2,
-      spawned: false
-    });
-    time += BEAT_INTERVAL;
-    i++;
-  }
-}
-
-/* ===============================
-   SPAWN
-================================ */
 function spawnBeat(beat) {
-  const laneEl = beat.lane === 0 ? laneLeft : laneRight;
-
+  const lane = lanes[beat.lane];
   const el = document.createElement("div");
   el.className = "beat";
   el.style.top = "-70px";
-  laneEl.appendChild(el);
+  lane.appendChild(el);
 
   activeBeats.push({
+    ...beat,
     el,
-    lane: beat.lane,
-    spawnTime: beat.time - FALL_DURATION,
-    hitTime: beat.time,
-    hit: false
+    spawnTime: beat.time * 1000 - FALL_DURATION
   });
 }
 
-/* ===============================
-   INPUT
-================================ */
-function handleTap(lane) {
-  if (!started) return;
-
-  const songTime = video.currentTime * 1000;
-
-  const candidates = activeBeats.filter(b =>
-    b.lane === lane && !b.hit
-  );
-
-  if (!candidates.length) return;
-
-  const beat = candidates.reduce((a, b) =>
-    Math.abs(a.hitTime - songTime) <
-    Math.abs(b.hitTime - songTime) ? a : b
-  );
-
-  const diff = Math.abs(songTime - beat.hitTime);
-
-  if (diff <= HIT_WINDOW) {
-    beat.hit = true;
-    beat.el.classList.add("hit");
-    setTimeout(() => beat.el.remove(), 120);
-    activeBeats = activeBeats.filter(b => b !== beat);
-  }
-}
-
-/* ===============================
-   MAIN LOOP
-================================ */
 function update() {
   if (!started) return;
 
-  const songTime = video.currentTime * 1000;
+  const now = video.currentTime * 1000;
 
-  // Spawn beats
-  for (const beat of beatmap) {
-    if (!beat.spawned && songTime >= beat.time - FALL_DURATION) {
-      spawnBeat(beat);
-      beat.spawned = true;
+  beats.forEach(b => {
+    if (!b.spawned && now >= b.time * 1000 - FALL_DURATION - OFFSET) {
+      spawnBeat(b);
+      b.spawned = true;
     }
-  }
+  });
 
-  // Update beats
-  activeBeats = activeBeats.filter(b => {
-    const progress = (songTime - b.spawnTime) / FALL_DURATION;
-    const laneHeight = b.el.parentElement.clientHeight;
+  activeBeats.forEach(b => {
+    const progress = (now - b.spawnTime - OFFSET) / FALL_DURATION;
+    if (progress < 0 || progress > 1.2) return;
 
-    // 🔥 HIT LINE NOW AT CENTER
+    const laneHeight = lanes[b.lane].clientHeight;
     const hitY = laneHeight * 0.5;
+    const startY = -70;
+    const travelDistance = hitY - startY;
 
-    // Miss
-    if (!b.hit && songTime - b.hitTime > HIT_WINDOW) {
-      b.hit = true;
-      b.el.classList.add("miss");
-      setTimeout(() => b.el.remove(), 150);
-      return false;
-    }
-
-    if (progress >= 1.2) {
-      b.el.remove();
-      return false;
-    }
-
-    b.el.style.top = (progress * hitY) + "px";
-    return true;
+    const y = startY + progress * travelDistance;
+    b.el.style.top = y + "px";
   });
 
   requestAnimationFrame(update);
 }
 
-/* ===============================
-   START GAME (USER GESTURE ONLY)
-================================ */
-function startGame() {
-  if (started) return;
+function handleTap(laneIndex) {
+  const now = video.currentTime * 1000;
 
-  video.muted = false;
+  for (let i = 0; i < activeBeats.length; i++) {
+    const b = activeBeats[i];
+    if (b.lane !== laneIndex || b.hit) continue;
 
-  video.play().then(() => {
-    buildBeatmap(video.duration * 1000);
-    started = true;
+    const diff = Math.abs(now - b.time * 1000);
 
-    const startScreen = document.getElementById("start-screen");
-    if (startScreen) startScreen.remove();
+    const beatRect = b.el.getBoundingClientRect();
+    const circleRect = lanes[laneIndex]
+      .querySelector(".hit-circle")
+      .getBoundingClientRect();
 
-    requestAnimationFrame(update);
-  }).catch(err => {
-    console.warn("Play blocked:", err);
-  });
+    const beatCenterY = beatRect.top + beatRect.height / 2;
+    const circleCenterY = circleRect.top + circleRect.height / 2;
+    const distance = Math.abs(beatCenterY - circleCenterY);
+
+    if (diff <= HIT_WINDOW && distance < circleRect.height / 2) {
+      b.hit = true;
+      b.el.classList.add("hit");
+
+      setTimeout(() => b.el.remove(), 200);
+      return;
+    }
+  }
 }
 
-/* ===============================
-   EVENTS
-================================ */
-document.body.addEventListener("touchstart", e => {
-  startGame();
-  const x = e.touches[0].clientX;
-  handleTap(x < window.innerWidth / 2 ? 0 : 1);
-}, { passive: false });
+document.querySelectorAll(".tap-zone").forEach(zone => {
+  zone.addEventListener("pointerdown", () => {
+    if (!started) {
+      video.muted = false;   // REQUIRED for browser audio unlock
+      video.play();
+      started = true;
+      update();
+    }
 
-document.body.addEventListener("click", startGame, { once: true });
-
-document.body.addEventListener("keydown", e => {
-  startGame();
-  if (e.key === "ArrowLeft") handleTap(0);
-  if (e.key === "ArrowRight") handleTap(1);
+    handleTap(Number(zone.dataset.lane));
+  });
 });
