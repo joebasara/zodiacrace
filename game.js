@@ -2,16 +2,16 @@
    CONFIG (175 BPM)
 ================================ */
 const BPM = 175;
-const BEAT_INTERVAL = 60000 / BPM; // ≈ 342.86 ms
-const OFFSET = 800;                // ms before first beat
-const FALL_DURATION = 1200;        // ms travel time
-const HIT_WINDOW = 300;            // ms
+const BEAT_INTERVAL = 60000 / BPM; // ≈ 342.86ms
+const OFFSET = 800;
+const FALL_DURATION = 1200;
+const HIT_WINDOW = 300;
 const BEAT_SIZE = 60;
 
 /* ===============================
    ELEMENTS
 ================================ */
-const audio = document.getElementById("audio");
+const video = document.getElementById("bg-video");
 const laneLeft = document.getElementById("lane-left");
 const laneRight = document.getElementById("lane-right");
 
@@ -23,7 +23,7 @@ let activeBeats = [];
 let started = false;
 
 /* ===============================
-   BUILD BEATMAP (STRAIGHT 175 BPM)
+   BUILD BEATMAP
 ================================ */
 function buildBeatmap(durationMs) {
   beatmap = [];
@@ -33,7 +33,7 @@ function buildBeatmap(durationMs) {
   while (time < durationMs) {
     beatmap.push({
       time,
-      lane: i % 2, // alternate lanes
+      lane: i % 2,
       spawned: false
     });
     time += BEAT_INTERVAL;
@@ -72,7 +72,7 @@ function spawnBeat(beat) {
 function handleTap(lane) {
   if (!started) return;
 
-  const songTime = audio.currentTime * 1000;
+  const songTime = video.currentTime * 1000;
 
   const candidates = activeBeats.filter(b =>
     b.lane === lane && !b.hit
@@ -101,9 +101,8 @@ function handleTap(lane) {
 function update() {
   if (!started) return;
 
-  const songTime = audio.currentTime * 1000;
+  const songTime = video.currentTime * 1000;
 
-  // Spawn beats
   for (const beat of beatmap) {
     if (!beat.spawned && songTime >= beat.time - FALL_DURATION) {
       spawnBeat(beat);
@@ -111,7 +110,6 @@ function update() {
     }
   }
 
-  // Update beats
   activeBeats = activeBeats.filter(b => {
     const progress = (songTime - b.spawnTime) / FALL_DURATION;
 
@@ -136,17 +134,17 @@ function update() {
 }
 
 /* ===============================
-   START GAME (USER GESTURE)
+   START GAME (REQUIRED USER TAP)
 ================================ */
 function startGame() {
   if (started) return;
 
-  audio.play().then(() => {
-    buildBeatmap(audio.duration * 1000);
+  video.play().then(() => {
+    buildBeatmap(video.duration * 1000);
     started = true;
     requestAnimationFrame(update);
   }).catch(err => {
-    console.warn("Play blocked:", err);
+    console.warn("Playback blocked:", err);
   });
 }
 
