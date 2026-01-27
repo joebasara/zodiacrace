@@ -1,115 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport"
-  content="width=device-width, height=device-height,
-           initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zodiac Race Rhythm</title>
 
-<title>175 BPM Rhythm Test</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      overflow: hidden;
+      touch-action: manipulation;
+      user-select: none;
+    }
 
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: black;
-  touch-action: none;
-}
+    #game {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: black;
+    }
 
-@media screen and (orientation: portrait) {
-  body::before {
-    content: "Please rotate your phone";
-    color: white;
-    font-size: 24px;
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: black;
-    z-index: 999;
-  }
-}
+    video {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 0;
+    }
 
-#game {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
+    .lane {
+      position: absolute;
+      top: 0;
+      width: 50%;
+      height: 100%;
+      z-index: 2;
+    }
 
-/* Background video */
-#bg-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 0;
-  pointer-events: none;
-}
+    /* Push lanes nearer edges for thumbs */
+    .lane.left {
+      left: 0;
+    }
 
-/* Lanes */
-.lane {
-  position: absolute;
-  top: 0;
-  width: 22vw;
-  height: 100%;
-  z-index: 2;
-}
+    .lane.right {
+      right: 0;
+    }
 
-#lane-left { left: 5vw; }
-#lane-right { right: 5vw; }
+    .hit-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 140px;
+      height: 140px;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      pointer-events: none;
+      z-index: 2;
+    }
 
-/* Hit line (center) */
-.hit-line {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 100%;
-  height: 6px;
-  background: rgba(255,255,255,0.95);
-  box-shadow: 0 0 12px rgba(255,255,255,0.9);
-  z-index: 3;
-}
+    .beat {
+      position: absolute;
+      left: 50%;
+      width: 60px;
+      height: 60px;
+      margin-left: -30px;
+      border-radius: 50%;
+      background: white;
+      z-index: 3;
+    }
 
-/* Beats */
-.beat {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: white;
-  left: 50%;
-  transform: translateX(-50%);
-}
-</style>
+    .beat.hit {
+      background: gold;
+    }
+
+    .tap-zone {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 5;
+    }
+  </style>
 </head>
 
 <body>
-<div id="game">
+  <div id="game">
+    <video id="video" src="race.mp4" muted playsinline></video>
 
-  <video
-    id="bg-video"
-    src="race.mp4"
-    preload="auto"
-    muted
-    playsinline
-  ></video>
+    <div class="lane left">
+      <div class="hit-circle"></div>
+      <div class="tap-zone" data-lane="0"></div>
+    </div>
 
-  <div id="lane-left" class="lane">
-    <div class="hit-line"></div>
+    <div class="lane right">
+      <div class="hit-circle"></div>
+      <div class="tap-zone" data-lane="1"></div>
+    </div>
   </div>
 
-  <div id="lane-right" class="lane">
-    <div class="hit-line"></div>
-  </div>
-
-</div>
-
-<script src="game.js" defer></script>
+  <script src="game.js"></script>
 </body>
 </html>
