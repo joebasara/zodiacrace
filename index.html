@@ -41,7 +41,7 @@ html, body {
   overflow: hidden;
 }
 
-/* Background video (optional) */
+/* Background video */
 #bg-video {
   position: absolute;
   inset: 0;
@@ -64,7 +64,7 @@ html, body {
 #lane-left { left: 5vw; }
 #lane-right { right: 5vw; }
 
-/* Hit line (centered) */
+/* Hit line */
 .hit-line {
   position: absolute;
   top: 50%;
@@ -85,35 +85,30 @@ html, body {
   background: white;
   left: 50%;
   transform: translateX(-50%);
-  will-change: top;
-}
-
-/* Feedback */
-.beat.hit {
-  background: gold;
-  box-shadow: 0 0 20px gold;
-  transform: translateX(-50%) scale(1.3);
-}
-
-.beat.miss {
-  background: red;
-  box-shadow: 0 0 20px red;
-  opacity: 0.85;
 }
 </style>
 </head>
 
 <body>
 <div id="game">
-  <!-- Use audio OR video; audio is safer for rhythm -->
-  <audio id="audio" src="saima 175bpm.mp3" preload="auto"></audio>
+
+  <!-- ✅ THIS WAS MISSING -->
+  <video
+    id="bg-video"
+    src="race.mp4"
+    preload="auto"
+    playsinline
+    muted
+  ></video>
 
   <div id="lane-left" class="lane">
     <div class="hit-line"></div>
   </div>
+
   <div id="lane-right" class="lane">
     <div class="hit-line"></div>
   </div>
+
 </div>
 
 <script src="game.js" defer></script>
