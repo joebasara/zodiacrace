@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <meta name="viewport"
-  content="width=device-width, height=device-height,
-           initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  content="width=device-width, initial-scale=1.0, user-scalable=no">
 
-<title>Horse Racing Rhythm</title>
+<title>Rhythm Race</title>
 
 <style>
 html, body {
@@ -16,24 +15,8 @@ html, body {
   height: 100%;
   overflow: hidden;
   background: black;
-  touch-action: none;
-  font-family: sans-serif;
 }
 
-/* Tap to start overlay */
-#startScreen {
-  position: fixed;
-  inset: 0;
-  background: black;
-  color: white;
-  font-size: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-/* Game container */
 #game {
   position: relative;
   width: 100vw;
@@ -41,78 +24,66 @@ html, body {
   overflow: hidden;
 }
 
-/* Video background */
-#bgVideo {
+video {
   position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 0;
 }
 
-/* Lanes */
-.lane {
-  position: absolute;
-  top: 0;
-  width: 25vw;
-  height: 100%;
-  z-index: 2;
-}
-
-#lane-left  { left: 5vw; }
-#lane-right { right: 5vw; }
-
-/* Hit circle */
 .hit-circle {
   position: absolute;
-  top: 50%;
-  left: 50%;
   width: 160px;
   height: 160px;
-  transform: translate(-50%, -50%);
   border-radius: 50%;
   background: rgba(255,255,255,0.3);
-  pointer-events: none;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
-/* Falling beat */
+#hit-left { left: 15%; }
+#hit-right { left: 85%; }
+
 .beat {
   position: absolute;
   width: 60px;
   height: 60px;
   border-radius: 50%;
   background: white;
-  left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, 0);
 }
 
-.beat.hit {
-  background: gold;
-}
-
-.beat.miss {
-  background: red;
+#startScreen {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  z-index: 10;
 }
 </style>
 </head>
 
 <body>
 
-<div id="startScreen">TAP TO START</div>
-
 <div id="game">
-  <video id="bgVideo" playsinline muted preload="auto">
+
+  <video id="bgVideo"
+    playsinline
+    webkit-playsinline
+    preload="auto"
+    muted>
     <source src="race.mp4" type="video/mp4">
   </video>
 
-  <div id="lane-left" class="lane">
-    <div class="hit-circle"></div>
-  </div>
+  <div id="hit-left" class="hit-circle"></div>
+  <div id="hit-right" class="hit-circle"></div>
 
-  <div id="lane-right" class="lane">
-    <div class="hit-circle"></div>
-  </div>
+  <div id="startScreen">TAP TO START</div>
+
 </div>
 
 <script src="game.js"></script>
