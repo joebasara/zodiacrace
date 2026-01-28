@@ -1,28 +1,15 @@
-// =====================
-// CONFIG
-// =====================
-const HIT_WINDOW = 0.3;          // seconds
-const FALL_TIME = 1.2;           // seconds for beat to fall
-const LANES = [0.15, 0.85];      // left / right (screen %)
-const HIT_CIRCLE_RADIUS = 80;    // px
-
-// =====================
-// ELEMENTS
-// =====================
 const video = document.getElementById("bgVideo");
 const game = document.getElementById("game");
 const startScreen = document.getElementById("startScreen");
 
-// =====================
-// STATE
-// =====================
-let activeBeats = [];
-let videoStarted = false;
-let lastTime = 0;
+const FALL_TIME = 1.2;
+const HIT_WINDOW = 0.3;
+const LANES = [0.15, 0.85];
 
-// =====================
-// BEATMAP (EDIT THESE TIMES)
-// =====================
+let activeBeats = [];
+let started = false;
+
+// 🔹 MANUAL BEATMAP (seconds)
 const beatmap = [
   { time: 1.0, lane: 0, spawned: false },
   { time: 1.8, lane: 1, spawned: false },
@@ -31,51 +18,21 @@ const beatmap = [
   { time: 4.2, lane: 0, spawned: false },
 ];
 
-// =====================
-// RESET (CRITICAL FOR MOBILE)
-// =====================
-function resetGameState() {
-  video.pause();
-  video.currentTime = 0;
-  video.muted = true;
-
-  beatmap.forEach(b => b.spawned = false);
-
-  activeBeats.forEach(b => b.el.remove());
-  activeBeats = [];
-
-  lastTime = 0;
-  videoStarted = false;
-}
-
-// =====================
-// SPAWN BEAT
-// =====================
-function spawnBeat(beat) {
+function spawnBeat(b) {
   const el = document.createElement("div");
   el.className = "beat";
-
-  el.style.left = `${LANES[beat.lane] * 100}%`;
+  el.style.left = `${LANES[b.lane] * 100}%`;
   el.style.top = "-60px";
-
   game.appendChild(el);
 
-  activeBeats.push({
-    time: beat.time,
-    lane: beat.lane,
-    el
-  });
+  activeBeats.push({ ...b, el });
 }
 
-// =====================
-// UPDATE LOOP
-// =====================
-function update(timestamp) {
-  if (!videoStarted) return;
+function update() {
+  if (!started) return;
 
   const t = video.currentTime;
 
-  // Spawn beats
   beatmap.forEach(b => {
     if (!b.spawned && t >= b.time - FALL_TIME) {
       b.spawned = true;
@@ -83,37 +40,28 @@ function update(timestamp) {
     }
   });
 
-  // Update beats
-  activeBeats.forEach((b, i) => {
+  activeBeats = activeBeats.filter(b => {
     const progress = (t - (b.time - FALL_TIME)) / FALL_TIME;
-    const y = progress * window.innerHeight * 0.5;
-
-    b.el.style.transform = `translate(-50%, ${y}px)`;
-
-    // Miss
-    if (t > b.time + HIT_WINDOW) {
-      b.el.style.background = "red";
-      setTimeout(() => b.el.remove(), 200);
-      activeBeats.splice(i, 1);
+    if (progress > 1.3) {
+      b.el.remove();
+      return false;
     }
+
+    b.el.style.top = `${progress * window.innerHeight * 0.5}px`;
+    return true;
   });
 
   requestAnimationFrame(update);
 }
 
-// =====================
 // INPUT
-// =====================
-function handleHit(x) {
+function hit(x) {
+  const lane = x < innerWidth / 2 ? 0 : 1;
   const t = video.currentTime;
-  const lane = x < window.innerWidth / 2 ? 0 : 1;
 
   for (let i = 0; i < activeBeats.length; i++) {
     const b = activeBeats[i];
-    if (
-      b.lane === lane &&
-      Math.abs(b.time - t) <= HIT_WINDOW
-    ) {
+    if (b.lane === lane && Math.abs(b.time - t) <= HIT_WINDOW) {
       b.el.style.background = "gold";
       setTimeout(() => b.el.remove(), 150);
       activeBeats.splice(i, 1);
@@ -122,37 +70,25 @@ function handleHit(x) {
   }
 }
 
-// Touch + Mouse
-window.addEventListener("touchstart", e => {
-  handleHit(e.touches[0].clientX);
-});
+addEventListener("touchstart", e => hit(e.touches[0].clientX));
+addEventListener("mousedown", e => hit(e.clientX));
 
-window.addEventListener("mousedown", e => {
-  handleHit(e.clientX);
-});
-
-// =====================
-// START GAME (MOBILE SAFE)
-// =====================
-function startGame() {
-  resetGameState();
-
-  video.play().then(() => {
-    video.muted = false;
-    videoStarted = true;
-    startScreen.style.display = "none";
-    requestAnimationFrame(update);
-  }).catch(err => {
-    console.error("Playback failed:", err);
-  });
-}
-
+// 🔹 CRITICAL MOBILE START
 startScreen.addEventListener("click", startGame);
 startScreen.addEventListener("touchstart", startGame);
 
-// =====================
-// MOBILE BACK/FORWARD CACHE FIX
-// =====================
-window.addEventListener("pageshow", e => {
-  if (e.persisted) location.reload();
-});
+function startGame() {
+  if (started) return;
+
+  started = true;
+  startScreen.style.display = "none";
+
+  video.muted = false;
+  video.currentTime = 0;
+
+  video.play().then(() => {
+    requestAnimationFrame(update);
+  }).catch(err => {
+    console.error("Playback blocked:", err);
+  });
+}
