@@ -1,15 +1,15 @@
 /* ===============================
    CONFIG
 ================================ */
-const FALL_DURATION = 1200;     // ms
-const HIT_WINDOW = 300;         // ± ms
+const FALL_DURATION = 1200;   // ms to fall to hit circle
+const HIT_WINDOW = 300;       // ± ms timing window
 const START_OFFSET = 0;
 
 /* ===============================
-   BEATMAP (replace with recorded map)
+   BEATMAP (replace with recorded data)
 ================================ */
 const beatmap = [
-  { time: 800, lane: 0 },
+  { time: 800,  lane: 0 },
   { time: 1200, lane: 1 },
   { time: 2000, lane: 0 },
   { time: 2300, lane: 1 },
@@ -20,21 +20,26 @@ const beatmap = [
    STATE
 ================================ */
 const video = document.getElementById("bgVideo");
+const startScreen = document.getElementById("startScreen");
+
 let videoStarted = false;
 let activeBeats = [];
 
 /* ===============================
-   START GAME (user gesture)
+   START GAME (USER GESTURE)
 ================================ */
-document.body.addEventListener("touchstart", startGame, { once: true });
-document.body.addEventListener("click", startGame, { once: true });
+startScreen.addEventListener("touchstart", startGame, { once: true });
+startScreen.addEventListener("click", startGame, { once: true });
 
 function startGame() {
   video.play().then(() => {
+    video.muted = false;        // REQUIRED for mobile audio
     videoStarted = true;
-    document.getElementById("startScreen").remove();
+    startScreen.remove();
     requestAnimationFrame(update);
-  }).catch(err => console.error(err));
+  }).catch(err => {
+    console.error("Video failed to play:", err);
+  });
 }
 
 /* ===============================
@@ -76,7 +81,7 @@ function update() {
     }
   }
 
-  // Update beats
+  // Update falling beats
   activeBeats = activeBeats.filter(b => {
     const progress = (songTime - b.spawnTime) / FALL_DURATION;
 
@@ -116,7 +121,8 @@ function handleTap(x) {
   const songTime = video.currentTime * 1000;
 
   for (const b of activeBeats) {
-    if (b.hit || b.laneEl.id !== (lane === 0 ? "lane-left" : "lane-right")) continue;
+    if (b.hit) continue;
+    if (b.laneEl.id !== (lane === 0 ? "lane-left" : "lane-right")) continue;
 
     const diff = Math.abs(songTime - b.hitTime);
 
