@@ -15,7 +15,7 @@
 ===================== */
 
 // Time (seconds) for a beat to travel from spawn point to hit circle
-const FALL_TIME = 1.6;
+const FALL_TIME = 2.0;
 
 // Hit tolerance window (seconds)
 const HIT_WINDOW = 0.15;
@@ -680,4 +680,5 @@ function showResult() {
 
   result.classList.add("show");
 }
+
 
