@@ -1,15 +1,33 @@
 /*************************************************
- * RHYTHM RACER - FINAL STABLE BUILD
+ * RHYTHM RACER – FINAL STABLE VERSION
  *************************************************/
 
-/* CONFIG */
-const FALL_TIME = 2.4;               // travel duration
-const HIT_WINDOW = 0.15;
-const MISS_CLEANUP_AFTER = 0.4;
+/* =====================
+   CONFIG
+===================== */
+
+// Visual fall speed (DO NOT tweak unless you want faster/slower movement)
+const FALL_TIME = 2.4;
+
+// Hit tolerance window (seconds)
+const HIT_WINDOW = 0.18;
+
+// Remove missed beats after this many seconds
+const MISS_CLEANUP_AFTER = 0.35;
+
+// Spawn higher above screen (more negative = earlier appearance)
+const SPAWN_OFFSET_PX = -360;
+
+// Points
 const POINTS_PER_HIT = 1;
+
+// Video file
 const VIDEO_FILE = "race.mp4";
 
-/* BEATMAP (PASTE YOUR OWN HERE) */
+/* =====================
+   BEATMAP
+   👉 PASTE / REPLACE YOUR OWN
+===================== */
 const BEATMAP = [
 
   { time: 5.587, lane: 1 },
@@ -442,7 +460,9 @@ const BEATMAP = [
    
 ];
 
-/* DOM */
+/* =====================
+   DOM
+===================== */
 const game = document.getElementById("game");
 const video = document.getElementById("video");
 const lanes = [
@@ -603,6 +623,7 @@ function showResult() {
   resultLine.textContent = `${score} / ${total}\n${phrase}`;
   result.classList.add("show");
 }
+
 
 
 
