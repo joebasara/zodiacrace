@@ -16,7 +16,7 @@ const HIT_WINDOW = 0.18;
 const MISS_CLEANUP_AFTER = 0.35;
 
 // Spawn higher above screen (more negative = earlier appearance)
-const SPAWN_OFFSET_PX = -360;
+const SPAWN_OFFSET_PX = -260;
 
 // Points
 const POINTS_PER_HIT = 1;
@@ -623,6 +623,7 @@ function showResult() {
   resultLine.textContent = `${score} / ${total}\n${phrase}`;
   result.classList.add("show");
 }
+
 
 
 
