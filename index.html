@@ -33,7 +33,6 @@ html, body {
 
 /* =====================
    VIDEO (BOTTOM LAYER)
-   CRITICAL for mobile
 ===================== */
 video {
   position: absolute;
@@ -41,7 +40,7 @@ video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 0; /* 👈 MUST be lowest */
+  z-index: 0;
 }
 
 /* =====================
@@ -52,8 +51,8 @@ video {
   top: 0;
   width: 50%;
   height: 100%;
-  z-index: 2; /* 👈 above video */
-  pointer-events: none;
+  z-index: 2;
+  pointer-events: none; /* beats + hit circles don't block taps */
 }
 
 #lane-left { left: 0; }
@@ -61,6 +60,7 @@ video {
 
 /* =====================
    HIT CIRCLES
+   (moved higher)
 ===================== */
 .hit-circle {
   position: absolute;
@@ -70,7 +70,7 @@ video {
   background: rgba(255,255,255,0.25);
   left: 50%;
   transform: translateX(-50%);
-  bottom: 15%;
+  bottom: 28%; /* 👈 was 15%, now higher for thumbs */
 }
 
 /* =====================
@@ -85,7 +85,12 @@ video {
   left: 50%;
   transform: translate3d(-50%, 0, 0);
   will-change: transform, top;
-  z-index: 3; /* 👈 ensures visibility on mobile */
+  z-index: 3;
+}
+
+/* When hit, flash yellow briefly */
+.beat.hit {
+  background: yellow;
 }
 
 /* =====================
@@ -141,6 +146,8 @@ video {
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  text-align: center;
+  padding: 18px;
 }
 
 #result.show {
