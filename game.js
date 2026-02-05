@@ -1,33 +1,15 @@
 /*************************************************
- * RHYTHM RACER – FINAL STABLE VERSION
+ * RHYTHM RACER - FINAL STABLE BUILD
  *************************************************/
 
-/* =====================
-   CONFIG
-===================== */
-
-// Visual fall speed (DO NOT tweak unless you want faster/slower movement)
-const FALL_TIME = 2.4;
-
-// Hit tolerance window (seconds)
-const HIT_WINDOW = 0.18;
-
-// Remove missed beats after this many seconds
-const MISS_CLEANUP_AFTER = 0.35;
-
-// Spawn higher above screen (more negative = earlier appearance)
-const SPAWN_OFFSET_PX = -360;
-
-// Points
+/* CONFIG */
+const FALL_TIME = 2.4;               // travel duration
+const HIT_WINDOW = 0.15;
+const MISS_CLEANUP_AFTER = 0.4;
 const POINTS_PER_HIT = 1;
-
-// Video file
 const VIDEO_FILE = "race.mp4";
 
-/* =====================
-   BEATMAP
-   👉 PASTE / REPLACE YOUR OWN
-===================== */
+/* BEATMAP (PASTE YOUR OWN HERE) */
 const BEATMAP = [
 
   { time: 5.587, lane: 1 },
@@ -460,9 +442,8 @@ const BEATMAP = [
    
 ];
 
-/* =====================
-   DOM
-===================== */
+/* DOM */
+const game = document.getElementById("game");
 const video = document.getElementById("video");
 const lanes = [
   document.getElementById("lane-left"),
@@ -474,23 +455,16 @@ const scoreEl = document.getElementById("score");
 const result = document.getElementById("result");
 const resultLine = document.getElementById("resultLine");
 
-/* =====================
-   STATE
-===================== */
+/* STATE */
 let started = false;
 let beatIndex = 0;
 let activeBeats = [];
 let score = 0;
 
-/* =====================
-   LOAD VIDEO
-===================== */
+/* LOAD VIDEO */
 video.src = VIDEO_FILE;
-video.preload = "auto";
 
-/* =====================
-   START
-===================== */
+/* START */
 startBtn.addEventListener("click", async () => {
   if (started) return;
   started = true;
@@ -500,44 +474,32 @@ startBtn.addEventListener("click", async () => {
   score = 0;
   scoreEl.textContent = "0";
 
-  try {
-    video.muted = false;
-    await video.play();
-    overlay.classList.add("hidden");
-    requestAnimationFrame(gameLoop);
-  } catch (e) {
-    console.warn("Playback blocked, retrying muted");
-    video.muted = true;
-    await video.play();
-    overlay.classList.add("hidden");
-    requestAnimationFrame(gameLoop);
-  }
+  video.muted = false;
+  video.volume = 1;
+
+  await video.play();
+  overlay.classList.add("hidden");
+  requestAnimationFrame(gameLoop);
 });
 
-/* =====================
-   INPUT
-===================== */
-
-// Keyboard (PC)
+/* INPUT */
+// PC
 window.addEventListener("keydown", e => {
   if (!started) return;
-  if (e.key.toLowerCase() === "a") handleHit(0);
-  if (e.key.toLowerCase() === "d") handleHit(1);
+  if (e.key === "a") handleHit(0);
+  if (e.key === "d") handleHit(1);
 });
 
-// Touch / click
-document.getElementById("game").addEventListener("pointerdown", e => {
+// Mobile + PC tap
+game.addEventListener("pointerdown", e => {
   if (!started || video.paused) return;
   const lane = e.clientX < window.innerWidth / 2 ? 0 : 1;
   handleHit(lane);
 });
 
-/* =====================
-   MAIN LOOP
-===================== */
+/* MAIN LOOP */
 function gameLoop() {
   const t = video.currentTime;
-
   spawnBeats(t);
   updateBeats(t);
   cleanupMisses(t);
@@ -550,56 +512,49 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-/* =====================
-   SPAWN
-===================== */
+/* SPAWN */
 function spawnBeats(t) {
   while (
     beatIndex < BEATMAP.length &&
-    (BEATMAP[beatIndex].time - t) <= FALL_TIME
+    BEATMAP[beatIndex].time - t <= FALL_TIME
   ) {
     createBeat(BEATMAP[beatIndex]);
     beatIndex++;
   }
 }
 
-/* =====================
-   CREATE BEAT
-===================== */
+/* CREATE */
 function createBeat(data) {
-  const el = document.createElement("div");
-  el.className = "beat";
-  lanes[data.lane].appendChild(el);
+  const beat = document.createElement("div");
+  beat.className = "beat";
+  lanes[data.lane].appendChild(beat);
 
   activeBeats.push({
-    el,
+    el: beat,
     time: data.time,
-    lane: data.lane
+    lane: data.lane,
+    hit: false,
   });
 }
 
-/* =====================
-   UPDATE BEATS
-===================== */
+/* UPDATE */
 function updateBeats(t) {
   for (const b of activeBeats) {
-    const laneEl = lanes[b.lane];
-    const hit = laneEl.querySelector(".hit-circle");
+    const lane = lanes[b.lane];
+    const hit = lane.querySelector(".hit-circle");
 
-    const laneRect = laneEl.getBoundingClientRect();
+    const laneRect = lane.getBoundingClientRect();
     const hitRect = hit.getBoundingClientRect();
 
     const hitY = (hitRect.top - laneRect.top) + hitRect.height / 2;
-    const progress = Math.max(0, 1 - (b.time - t) / FALL_TIME);
+    const progress = 1 - (b.time - t) / FALL_TIME;
 
-    const y = SPAWN_OFFSET_PX + (hitY - SPAWN_OFFSET_PX) * progress;
+    const y = hitY * Math.max(0, progress);
     b.el.style.top = `${y}px`;
   }
 }
 
-/* =====================
-   CLEANUP MISSES
-===================== */
+/* CLEANUP */
 function cleanupMisses(t) {
   for (let i = activeBeats.length - 1; i >= 0; i--) {
     if (t > activeBeats[i].time + MISS_CLEANUP_AFTER) {
@@ -609,9 +564,7 @@ function cleanupMisses(t) {
   }
 }
 
-/* =====================
-   HIT
-===================== */
+/* HIT */
 function handleHit(lane) {
   const t = video.currentTime;
 
@@ -620,8 +573,10 @@ function handleHit(lane) {
     if (b.lane !== lane) continue;
 
     if (Math.abs(b.time - t) <= HIT_WINDOW) {
-      b.el.style.background = "gold";
-      b.el.remove();
+      b.hit = true;
+      b.el.classList.add("hit");
+
+      setTimeout(() => b.el.remove(), 140);
       activeBeats.splice(i, 1);
 
       score += POINTS_PER_HIT;
@@ -631,23 +586,24 @@ function handleHit(lane) {
   }
 }
 
-/* =====================
-   RESULT
-===================== */
+/* RESULT */
 function showResult() {
   video.pause();
-
   const total = BEATMAP.length;
+
   let phrase = "龙马精神! You can do it!";
 
-  if (score >= 600) phrase = "马到成功! Huat Ah!";
-  else if (score >= 500) phrase = "万马奔腾! Overdrive!";
+  if (score >= 320) {
+    phrase = "万马奔腾! Overdrive!";
+  } else if (score >= 250) {
+    phrase = "马到成功! Huat Ah!";
+  }
 
-  resultLine.innerHTML = `
-    <div>${phrase}</div>
-    <div style="margin-top:10px">Score: ${score} / ${total}</div>
-  `;
+
+  resultLine.textContent = `${score} / ${total}\n${phrase}`;
   result.classList.add("show");
 }
+
+
 
 
