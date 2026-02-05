@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta name="viewport"
+  content="width=device-width, initial-scale=1.0, user-scalable=no" />
 
 <title>Rhythm Racer</title>
 
@@ -15,12 +16,10 @@ html, body {
   background: black;
   overflow: hidden;
   touch-action: none;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, sans-serif;
 }
 
-/* =====================
-   GAME CONTAINER
-===================== */
+/* GAME CONTAINER */
 #game {
   position: relative;
   width: 100vw;
@@ -28,9 +27,7 @@ html, body {
   overflow: hidden;
 }
 
-/* =====================
-   VIDEO
-===================== */
+/* VIDEO */
 video {
   position: absolute;
   inset: 0;
@@ -39,27 +36,21 @@ video {
   object-fit: cover;
 }
 
-/* =====================
-   LANES
-===================== */
+/* LANES */
 .lane {
   position: absolute;
   top: 0;
-  width: 50%;
+  width: 40%;
   height: 100%;
 }
-
 #lane-left { left: 0; }
 #lane-right { right: 0; }
 
-/* =====================
-   HIT ZONE
-   (moved higher for thumbs)
-===================== */
+/* HIT ZONE (comfortable for thumbs) */
 .hit-circle {
   position: absolute;
-  width: 100px;
-  height: 100px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   background: rgba(255,255,255,0.25);
   left: 50%;
@@ -67,9 +58,7 @@ video {
   bottom: 28%;
 }
 
-/* =====================
-   BEATS
-===================== */
+/* BEATS */
 .beat {
   position: absolute;
   width: 60px;
@@ -77,16 +66,38 @@ video {
   border-radius: 50%;
   background: white;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(1);
+  will-change: transform, opacity, background;
 }
 
-/* =====================
-   UI OVERLAY
-===================== */
+/* HIT FEEDBACK */
+.beat.hit {
+  background: gold !important;
+  animation: hitPulse 120ms ease-out forwards;
+}
+
+@keyframes hitPulse {
+  0%   { transform: translateX(-50%) scale(1);   opacity: 1; }
+  60%  { transform: translateX(-50%) scale(1.12); opacity: 1; }
+  100% { transform: translateX(-50%) scale(0.9);  opacity: 0; }
+}
+
+/* SCORE */
+#score {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 18px;
+  z-index: 5;
+}
+
+/* OVERLAY */
 #overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0,0,0,0.65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -98,49 +109,29 @@ video {
 }
 
 #startBtn {
-  font-size: 22px;
-  padding: 14px 26px;
-  border-radius: 12px;
+  font-size: 20px;
+  padding: 14px 28px;
   border: none;
+  border-radius: 8px;
   background: gold;
   color: black;
-  font-weight: bold;
 }
 
-/* =====================
-   SCORE
-===================== */
-#scoreBox {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: white;
-  font-size: 20px;
-  z-index: 5;
-}
-
-/* =====================
-   RESULT
-===================== */
+/* RESULT */
 #result {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.8);
   color: white;
   display: none;
   align-items: center;
   justify-content: center;
-  text-align: center;
+  flex-direction: column;
   z-index: 20;
 }
 
 #result.show {
   display: flex;
-}
-
-#resultContent {
-  font-size: 22px;
 }
 </style>
 </head>
@@ -158,16 +149,14 @@ video {
     <div class="hit-circle"></div>
   </div>
 
-  <div id="scoreBox">Score: <span id="score">0</span></div>
+  <div id="score">0</div>
 
   <div id="overlay">
     <button id="startBtn">START</button>
   </div>
 
   <div id="result">
-    <div id="resultContent">
-      <div id="resultLine"></div>
-    </div>
+    <h2 id="resultLine"></h2>
   </div>
 </div>
 
