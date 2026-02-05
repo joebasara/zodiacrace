@@ -1,7 +1,8 @@
 /*************************************************
  * RHYTHM RACER (PC + MOBILE)
- * - Starts muted for autoplay safety
- * - Unmutes AFTER user clicks/taps Start
+ * Audio fix for GitHub Pages / mobile:
+ * - Try starting UNMUTED on user gesture
+ * - If blocked, start muted and show Unmute button
  *************************************************/
 
 /* =====================
@@ -28,6 +29,7 @@ const video = document.getElementById("video");
 const overlay = document.getElementById("overlay");
 const errorEl = document.getElementById("error");
 const pointsEl = document.getElementById("points");
+const unmuteBtn = document.getElementById("unmuteBtn");
 
 const lanes = [
   document.getElementById("lane-left"),
@@ -52,9 +54,9 @@ function setPoints(v) {
    VIDEO
 ===================== */
 video.src = VIDEO_FILE;
-
-// Start muted for compatibility; we'll unmute after user click.
-video.muted = true;
+video.preload = "auto";
+// We'll control muted/volume in start() based on what the browser allows.
+video.muted = false;
 video.volume = 1.0;
 
 video.addEventListener("error", () => {
@@ -64,6 +66,30 @@ video.addEventListener("error", () => {
     `Also ensure the file can play in your browser (try opening it directly).`
   );
 });
+
+/* =====================
+   UNMUTE BUTTON
+   (Only needed when browser forces muted)
+===================== */
+async function forceUnmute() {
+  try {
+    video.muted = false;
+    video.volume = 1.0;
+
+    // Some browsers require a second play() attempt after changing muted.
+    await video.play();
+
+    // Hide button if unmute succeeded
+    if (!video.muted && video.volume > 0) {
+      unmuteBtn.style.display = "none";
+    }
+  } catch (e) {
+    // Keep button visible; user can tap again
+  }
+}
+
+unmuteBtn.addEventListener("click", forceUnmute);
+unmuteBtn.addEventListener("touchstart", forceUnmute, { passive: true });
 
 /* =====================
    START GAME
@@ -82,22 +108,38 @@ async function startGameOnce() {
   try {
     video.currentTime = 0;
 
-    // Play while muted first (most reliable)
-    video.muted = true;
-    await video.play();
-
-    // Now unmute AFTER play succeeds (still inside user gesture)
+    // Attempt 1: start unmuted (best chance for real audio)
     video.muted = false;
     video.volume = 1.0;
+    await video.play();
+
+    // If browser *still* forces muted, show Unmute button
+    if (video.muted || video.volume === 0) {
+      unmuteBtn.style.display = "block";
+    } else {
+      unmuteBtn.style.display = "none";
+    }
 
     requestAnimationFrame(gameLoop);
-  } catch (err) {
-    started = false;
-    overlay.style.display = "flex";
-    setError(
-      `Video play was blocked or failed.\n` +
-      `Details: ${String(err)}`
-    );
+  } catch (err1) {
+    // Attempt 2: fallback to muted start (so the game still runs)
+    try {
+      video.muted = true;
+      video.volume = 1.0;
+      await video.play();
+
+      // Now prompt user to unmute via a direct button press
+      unmuteBtn.style.display = "block";
+
+      requestAnimationFrame(gameLoop);
+    } catch (err2) {
+      started = false;
+      overlay.style.display = "flex";
+      setError(
+        `Video play was blocked or failed.\n` +
+        `Details: ${String(err2)}`
+      );
+    }
   }
 }
 
