@@ -1,74 +1,16 @@
-// game.js
-/*************************************************
- * RHYTHM RACER - SIMPLE MOBILE + PC (ONE START BUTTON)
- *
- * Requirements covered:
- * 1) ONLY ONE start button (no unmute button)
- * 2) Start gesture starts BOTH video + audio on mobile
- * 3) Beat timing tied to video.currentTime (not wall clock)
- * 4) You can paste your own beatmap
- * 5) PC keys A/D + Mobile tap left/right
- * 6) Hit circle position can be moved in CSS; visuals still align
- * 7) Beats turn yellow when hit + hit circle flashes
- * 8) Points only (no combo/hits UI), show points counter
- * 9) End phrases based on score ranges (with safe scaling if total != 618)
- * 10) Allow spawning higher off-screen to improve feel without breaking timing
- *************************************************/
+// game.js (simplified)
 
-/* =====================
-   CONFIG
-===================== */
-
-// Video file (must exist in same folder)
+/* ========= CONFIG ========= */
 const VIDEO_FILE = "race.mp4";
-
-/*
-  HIT WINDOW:
-  If you still feel “not accurate”, increase slightly (e.g. 0.18–0.22).
-*/
 const HIT_WINDOW = 0.15;
-
-// Remove beats a bit after they pass their scheduled time (miss cleanup)
 const MISS_CLEANUP_AFTER = 0.35;
-
-// Score per hit (simple points)
 const POINTS_PER_HIT = 1;
 
-/*
-  VISUAL SPEED SYSTEM (important):
-  Many rhythm-game “rushed” feelings happen when distance changes
-  (hit circle moved up/down, spawn moved off-screen) but FALL_TIME stays fixed.
-
-  Here we keep VISUAL SPEED consistent by computing FALL_TIME dynamically:
-
-    fallTime = distancePx / speedPxPerSec
-
-  So:
-    - Move hit circle? still feels the same
-    - Spawn higher off-screen? still feels the same
-*/
-const SPEED_FRACTION_OF_LANE_PER_SEC = 0.95; // ~0.95 lane-heights per second
-
-/*
-  Spawn above screen:
-  Higher spawn makes early beats appear sooner (more reaction time),
-  but with this speed system, it won’t make the timing “rush”.
-*/
-const SPAWN_OFFSCREEN_MULTIPLIER = 0.35; // 0.35 lane-heights above the lane top
-
-/*
-  If your beatmap was authored assuming a specific “audio offset”,
-  you can adjust it here. Positive = beats happen later, negative = earlier.
-  Default 0.
-*/
+const SPEED_FRACTION_OF_LANE_PER_SEC = 0.95;
+const SPAWN_OFFSCREEN_MULTIPLIER = 0.35;
 const GLOBAL_TIME_OFFSET = 0.0;
 
-/* =====================
-   BEATMAP
-   Paste your beatmap here:
-   lane: 0 = left, 1 = right
-===================== */
-
+/* ========= BEATMAP ========= */
 const BEATMAP = [
 
 
@@ -503,15 +445,10 @@ const BEATMAP = [
 ];
 
 
-/* =====================
-   DOM REFERENCES
-===================== */
+/* ========= DOM ========= */
 const game = document.getElementById("game");
 const video = document.getElementById("video");
-const lanes = [
-  document.getElementById("lane-left"),
-  document.getElementById("lane-right"),
-];
+const lanes = [document.getElementById("lane-left"), document.getElementById("lane-right")];
 
 const overlay = document.getElementById("overlay");
 const startBtn = document.getElementById("startBtn");
@@ -523,107 +460,137 @@ const resultBox = document.getElementById("result");
 const resultLine = document.getElementById("resultLine");
 const resultPhrase = document.getElementById("resultPhrase");
 
-/* =====================
-   STATE
-===================== */
+/* ========= STATE ========= */
 let started = false;
 let beatIndex = 0;
 let activeBeats = []; // { el, time, lane }
 let score = 0;
 
-/* =====================
-   INIT
-===================== */
+/* ========= INIT ========= */
 video.src = VIDEO_FILE;
-// Don't force muted in HTML. We unmute and play on Start gesture.
 video.preload = "auto";
 totalEl.textContent = String(BEATMAP.length);
 
-/* =====================
-   START BUTTON
-   - Must be one gesture that calls play()
-   - We hide overlay after playback begins
-===================== */
-startBtn.addEventListener("click", async () => {
-  if (started) return;
+/* ========= HELPERS ========= */
+function resetGame() {
+  beatIndex = 0;
+  activeBeats.length = 0;
+  score = 0;
   started = true;
 
-  // Reset in case you later add restart
-  beatIndex = 0;
-  activeBeats = [];
-  score = 0;
   scoreEl.textContent = "0";
   totalEl.textContent = String(BEATMAP.length);
-
   resultBox.classList.remove("show");
 
-  // Clean any leftover beats
+  // remove old beat elements
   for (const laneEl of lanes) {
     laneEl.querySelectorAll(".beat").forEach((b) => b.remove());
   }
+}
+
+async function safePlayVideo() {
+  // must happen inside the click gesture
+  const tryPlay = async (muted) => {
+    video.muted = muted;
+    if (!muted) video.volume = 1.0;
+    await video.play();
+  };
 
   try {
-    // Key: unmute BEFORE play(), inside gesture
-    video.muted = false;
-    video.volume = 1.0;
-
-    await video.play();
-
-    overlay.classList.add("hidden");
-    requestAnimationFrame(gameLoop);
-  } catch (err) {
-    console.warn("Playback blocked on Start:", err);
-
-    // Fallback: try muted (still one button, no extra unmute UI)
+    await tryPlay(false);
+    return true;
+  } catch (e1) {
+    console.warn("Unmuted play blocked, trying muted:", e1);
     try {
-      video.muted = true;
-      await video.play();
-      overlay.classList.add("hidden");
-      requestAnimationFrame(gameLoop);
-    } catch (err2) {
-      console.error("Still blocked even when muted:", err2);
-      // Keep overlay visible; allow user to tap Start again
-      started = false;
+      await tryPlay(true);
+      return true;
+    } catch (e2) {
+      console.error("Playback blocked even when muted:", e2);
+      return false;
     }
   }
+}
+
+function computeLaneMetrics(laneEl) {
+  const hit = laneEl.querySelector(".hit-circle");
+  const laneRect = laneEl.getBoundingClientRect();
+  const hitRect = hit.getBoundingClientRect();
+
+  const hitY = (hitRect.top - laneRect.top) + hitRect.height / 2;
+  const spawnY = -laneRect.height * SPAWN_OFFSCREEN_MULTIPLIER;
+
+  const distance = hitY - spawnY;
+  const speedPxPerSec = laneRect.height * SPEED_FRACTION_OF_LANE_PER_SEC;
+
+  const fallTime = Math.max(0.35, distance / Math.max(120, speedPxPerSec));
+  return { hitY, spawnY, fallTime };
+}
+
+function isVideoDone(t) {
+  // avoids relying purely on ended (some browsers get weird at the end)
+  return video.ended || (video.duration && t >= video.duration - 0.02);
+}
+
+function flashHitCircle(lane) {
+  const hitCircle = lanes[lane].querySelector(".hit-circle");
+  hitCircle.classList.add("flash");
+  setTimeout(() => hitCircle.classList.remove("flash"), 90);
+}
+
+function removeBeatAtIndex(i, delayMs = 0) {
+  const el = activeBeats[i].el;
+  activeBeats.splice(i, 1);
+  if (delayMs <= 0) el.remove();
+  else setTimeout(() => el.remove(), delayMs);
+}
+
+/* ========= START ========= */
+startBtn.addEventListener("click", async () => {
+  if (started) return;
+
+  resetGame();
+
+  const ok = await safePlayVideo();
+  if (!ok) {
+    started = false; // allow trying again
+    return;
+  }
+
+  overlay.classList.add("hidden");
+  requestAnimationFrame(gameLoop);
 });
 
-/* =====================
-   INPUT
-   PC: A=left, D=right
-   Mobile: tap left/right half
-===================== */
-
-// Keyboard
+/* ========= INPUT ========= */
 window.addEventListener("keydown", (e) => {
   if (!started || video.paused) return;
   const k = e.key.toLowerCase();
   if (k === "a") handleHit(0);
-  if (k === "d") handleHit(1);
+  else if (k === "d") handleHit(1);
 });
 
-// Pointer input
-game.addEventListener("pointerdown", (e) => {
-  if (!started || video.paused) return;
+game.addEventListener(
+  "pointerdown",
+  (e) => {
+    if (!started || video.paused) return;
+    e.preventDefault?.();
+    handleHit(e.clientX < window.innerWidth / 2 ? 0 : 1);
+  },
+  { passive: false }
+);
 
-  // prevent accidental double actions
-  e.preventDefault?.();
-
-  const lane = e.clientX < window.innerWidth / 2 ? 0 : 1;
-  handleHit(lane);
-}, { passive: false });
-
-/* =====================
-   CORE LOOP
-===================== */
+/* ========= LOOP ========= */
 function gameLoop() {
   const t = video.currentTime;
 
-  spawnBeats(t);
-  updateBeats(t);
+  // compute metrics once per frame (lanes assumed same height/layout)
+  const metrics = [computeLaneMetrics(lanes[0]), computeLaneMetrics(lanes[1])];
+  const refFallTime = metrics[0].fallTime;
+
+  spawnBeats(t, refFallTime);
+  updateBeats(t, metrics);
   cleanupMisses(t);
 
-  if (video.ended || (video.duration && t >= video.duration - 0.02)) {
+  if (isVideoDone(t)) {
     showResult();
     return;
   }
@@ -631,119 +598,42 @@ function gameLoop() {
   if (!video.paused) requestAnimationFrame(gameLoop);
 }
 
-/* =====================
-   VISUAL TIMING HELPERS
-   fallTime is computed per lane based on pixel distance and speed
-===================== */
-function computeLaneMetrics(laneEl) {
-  const hit = laneEl.querySelector(".hit-circle");
-  const laneRect = laneEl.getBoundingClientRect();
-  const hitRect = hit.getBoundingClientRect();
-
-  // Target position inside lane: center of hit circle
-  const hitY = (hitRect.top - laneRect.top) + (hitRect.height / 2);
-
-  // Spawn above the lane top, offscreen
-  const spawnY = -laneRect.height * SPAWN_OFFSCREEN_MULTIPLIER;
-
-  // Distance in pixels
-  const distance = hitY - spawnY;
-
-  // Speed = fraction of lane height per second
-  const speedPxPerSec = laneRect.height * SPEED_FRACTION_OF_LANE_PER_SEC;
-
-  // Dynamic fall time to keep speed consistent
-  const fallTime = Math.max(0.35, distance / Math.max(120, speedPxPerSec));
-
-  return { hitY, spawnY, distance, fallTime };
-}
-
-/* =====================
-   SPAWN
-   Spawn a beat when it's fallTime seconds away from its scheduled hit time.
-===================== */
-function spawnBeats(t) {
-  // We use left lane metrics as reference; lanes are same height in our layout.
-  // (If you later make them different, compute per lane in createBeat/update.)
-  const refMetrics = computeLaneMetrics(lanes[0]);
-  const refFallTime = refMetrics.fallTime;
-
+/* ========= SPAWN / UPDATE / CLEANUP ========= */
+function spawnBeats(t, refFallTime) {
   while (beatIndex < BEATMAP.length) {
     const beat = BEATMAP[beatIndex];
     const scheduled = beat.time + GLOBAL_TIME_OFFSET;
 
-    if ((scheduled - t) <= refFallTime) {
-      createBeat({ time: scheduled, lane: beat.lane });
+    if (scheduled - t <= refFallTime) {
+      const el = document.createElement("div");
+      el.className = "beat";
+      el.style.top = "-200px";
+
+      lanes[beat.lane].appendChild(el);
+      activeBeats.push({ el, time: scheduled, lane: beat.lane });
       beatIndex++;
-    } else {
-      break;
-    }
+    } else break;
   }
 }
 
-/* =====================
-   CREATE BEAT ELEMENT
-===================== */
-function createBeat(data) {
-  const beat = document.createElement("div");
-  beat.className = "beat";
-
-  // Put it in the lane
-  const laneEl = lanes[data.lane];
-  laneEl.appendChild(beat);
-
-  // Start offscreen (actual top set in updateBeats)
-  beat.style.top = "-200px";
-
-  activeBeats.push({
-    el: beat,
-    time: data.time,
-    lane: data.lane,
-  });
-}
-
-/* =====================
-   UPDATE VISUALS
-   Position beats from spawnY -> hitY based on progress.
-===================== */
-function updateBeats(t) {
+function updateBeats(t, metrics) {
   for (const b of activeBeats) {
-    const laneEl = lanes[b.lane];
-    const { hitY, spawnY, fallTime } = computeLaneMetrics(laneEl);
-
-    // progress: 0 at spawn moment, 1 at scheduled hit time
-    const progress = 1 - (b.time - t) / fallTime;
-
-    // clamp
-    const p = Math.max(0, progress);
-
-    // interpolate
-    const y = spawnY + (hitY - spawnY) * p;
-
-    b.el.style.top = `${y}px`;
+    const { hitY, spawnY, fallTime } = metrics[b.lane];
+    const p = Math.max(0, 1 - (b.time - t) / fallTime);
+    b.el.style.top = `${spawnY + (hitY - spawnY) * p}px`;
   }
 }
 
-/* =====================
-   CLEANUP MISSES
-===================== */
 function cleanupMisses(t) {
   for (let i = activeBeats.length - 1; i >= 0; i--) {
-    const b = activeBeats[i];
-    if (t > b.time + MISS_CLEANUP_AFTER) {
-      b.el.remove();
+    if (t > activeBeats[i].time + MISS_CLEANUP_AFTER) {
+      activeBeats[i].el.remove();
       activeBeats.splice(i, 1);
     }
   }
 }
 
-/* =====================
-   HIT DETECTION
-   - only hits beats in the tapped lane
-   - within HIT_WINDOW
-   - gives points
-   - beat turns yellow briefly + hit circle flashes
-===================== */
+/* ========= HIT ========= */
 function handleHit(lane) {
   const t = video.currentTime;
 
@@ -752,69 +642,42 @@ function handleHit(lane) {
     if (b.lane !== lane) continue;
 
     if (Math.abs(b.time - t) <= HIT_WINDOW) {
-      // Visual feedback: beat yellow
       b.el.classList.add("hit");
+      flashHitCircle(lane);
 
-      // Hit circle flash
-      const hitCircle = lanes[lane].querySelector(".hit-circle");
-      hitCircle.classList.add("flash");
-      setTimeout(() => hitCircle.classList.remove("flash"), 90);
+      // let yellow show briefly
+      removeBeatAtIndex(i, 60);
 
-      // Remove beat after short moment so yellow is visible
-      const elToRemove = b.el;
-      activeBeats.splice(i, 1);
-      setTimeout(() => {
-        elToRemove.remove();
-      }, 60);
-
-      // Points
       score += POINTS_PER_HIT;
       scoreEl.textContent = String(score);
       return;
-    } else {
-      // beats are time-ordered by spawn, so if earliest isn't in window,
-      // later ones won't be either (for same lane). We can early-exit.
-      // But only if beat times are non-decreasing in your beatmap.
-      // We'll keep it safe and not early-exit.
     }
   }
 }
 
-/* =====================
-   END RESULT + PHRASES
-   User phrases:
-     600 - 618: 马到成功! Huat Ah!
-     500 - 599: 万马奔腾! Overdrive!
-     0   - 500: 龙马精神! You can do it!
-
-   If total beats isn't 618, we scale thresholds proportionally so it still works:
-     scaled600 = round(600/618 * total)
-     scaled500 = round(500/618 * total)
-===================== */
+/* ========= RESULT ========= */
 function showResult() {
   video.pause();
 
   const totalBeats = BEATMAP.length;
-  const msg = `Score: ${score} / ${totalBeats}`;
-  resultLine.textContent = msg;
+  resultLine.textContent = `Score: ${score} / ${totalBeats}`;
 
-  // Scaling logic (keeps your intent even if total beats differs)
   const scaled600 = Math.round((600 / 618) * totalBeats);
   const scaled500 = Math.round((500 / 618) * totalBeats);
 
-  let phrase = "龙马精神! You can do it!";
-  if (score >= Math.min(totalBeats, scaled600)) {
-    phrase = "马到成功! Huat Ah!";
-  } else if (score >= Math.min(totalBeats, scaled500)) {
-    phrase = "万马奔腾! Overdrive!";
-  }
+  resultPhrase.textContent =
+    score >= Math.min(totalBeats, scaled600)
+      ? "马到成功! Huat Ah!"
+      : score >= Math.min(totalBeats, scaled500)
+      ? "万马奔腾! Overdrive!"
+      : "龙马精神! You can do it!";
 
-  resultPhrase.textContent = phrase;
-
-  // Show results in the start overlay panel (simple and mobile-friendly)
   overlay.classList.remove("hidden");
   resultBox.classList.add("show");
 }
+
+
+
 
 
 
