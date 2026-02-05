@@ -6,8 +6,8 @@ const HIT_WINDOW = 0.15;
 const MISS_CLEANUP_AFTER = 0.35;
 const POINTS_PER_HIT = 1;
 
-const SPEED_FRACTION_OF_LANE_PER_SEC = 0.95;
-const SPAWN_OFFSCREEN_MULTIPLIER = 0.35;
+const SPEED_FRACTION_OF_LANE_PER_SEC = 0.70;
+const SPAWN_OFFSCREEN_MULTIPLIER = 0.10;
 const GLOBAL_TIME_OFFSET = 0.0;
 
 /* ========= BEATMAP ========= */
@@ -675,6 +675,7 @@ function showResult() {
   overlay.classList.remove("hidden");
   resultBox.classList.add("show");
 }
+
 
 
 
