@@ -1,195 +1,149 @@
 <!-- index.html -->
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, user-scalable=no"
-  />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1, user-scalable=no" />
   <title>Rhythm Racer</title>
 
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-      touch-action: none; /* prevents scroll/zoom gestures from eating taps */
-      -webkit-user-select: none;
-      user-select: none;
+    :root{
+      --ui-font: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      --panel-bg: rgba(0,0,0,.55);
+      --ui-bg: rgba(0,0,0,.35);
+      --ui-radius: 10px;
     }
 
-    #game {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      background: #000;
+    html,body{
+      margin:0;height:100%;
+      overflow:hidden;
+      background:#000;
+      touch-action:none;
+      user-select:none;
+      -webkit-user-select:none;
+      font-family:var(--ui-font);
+      color:#fff;
     }
 
-    /* Video background */
-    #video {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: #000;
+    #game{position:relative;width:100vw;height:100vh;overflow:hidden;background:#000}
+
+    #video{
+      position:absolute;inset:0;
+      width:100%;height:100%;
+      object-fit:cover;
+      background:#000;
     }
 
-    /* Lanes */
-    .lane {
-      position: absolute;
-      top: 0;
-      height: 100%;
-      width: 50%;
-      pointer-events: none; /* beats/hit circles don't block taps */
+    .lane{
+      position:absolute;top:0;height:100%;width:50%;
+      pointer-events:none;
     }
-    #lane-left { left: 0; }
-    #lane-right { right: 0; }
+    #lane-left{left:0}
+    #lane-right{right:0}
 
-    /* Hit circles (visible guides)
-       You asked: shift higher (between middle and bottom).
-       Adjust HIT_CIRCLE_BOTTOM in game.js if you want, but CSS defines the base look. */
-    .hit-circle {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(18vw, 110px);
-      height: min(18vw, 110px);
-      border-radius: 50%;
-      border: 3px solid rgba(255,255,255,0.55);
-      background: rgba(255,255,255,0.10);
-      bottom: 30%; /* higher than the old 15%; easier for thumbs */
-      box-sizing: border-box;
+    /* Hit circle */
+    .hit-circle{
+      position:absolute;left:50%;
+      transform:translateX(-50%);
+      width:min(22vw,120px);
+      height:min(22vw,120px);
+      border-radius:50%;
+      border:3px solid rgba(255,255,255,.55);
+      background:rgba(255,255,255,.10);
+      opacity:.3;          /* 30% overall */
+      bottom:30%;
+      box-sizing:border-box;
     }
-
-    /* Flash the hit-circle when a hit happens */
-    .hit-circle.flash {
-      background: rgba(255, 255, 0, 0.35);
-      border-color: rgba(255, 255, 0, 0.85);
+    .hit-circle.flash{
+      background:rgba(255,255,0,.35);
+      border-color:rgba(255,255,0,.85);
+      opacity:1;           /* make flash visible */
     }
 
-    /* Falling beats */
-    .beat {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(12vw, 70px);
-      height: min(12vw, 70px);
-      border-radius: 50%;
-      background: rgba(255,255,255,0.95);
-      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-      will-change: transform, top;
+    /* Falling beat */
+    .beat{
+      position:absolute;left:50%;
+      transform:translateX(-50%);
+      width:min(12vw,70px);
+      height:min(12vw,70px);
+      border-radius:50%;
+      background:rgba(255,255,255,.95);
+      box-shadow:0 6px 18px rgba(0,0,0,.35);
+      will-change:top;
     }
-
-    /* Beat turns yellow on hit (briefly) */
-    .beat.hit {
-      background: rgba(255, 255, 0, 0.95);
-    }
+    .beat.hit{background:rgba(255,255,0,.95)}
 
     /* HUD */
-    #hud {
-      position: absolute;
-      top: env(safe-area-inset-top, 0);
-      left: env(safe-area-inset-left, 0);
-      right: env(safe-area-inset-right, 0);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 12px;
-      gap: 12px;
-      z-index: 4;
-      pointer-events: none; /* keep game taps working */
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color: #fff;
-      text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+    #hud{
+      position:absolute;
+      top:env(safe-area-inset-top,0);
+      left:env(safe-area-inset-left,0);
+      right:env(safe-area-inset-right,0);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px 12px;
+      gap:12px;
+      z-index:4;
+      pointer-events:none;
+      text-shadow:0 2px 6px rgba(0,0,0,.7);
+    }
+    #scoreBox,#hint{
+      background:var(--ui-bg);
+      padding:8px 10px;
+      border-radius:var(--ui-radius);
+      font-size:12px;
+      opacity:.9;
+    }
+    #scoreBox{font-size:16px;font-weight:800;opacity:1}
+
+    /* Overlay */
+    #overlay{
+      position:absolute;inset:0;
+      display:grid;place-items:center;
+      z-index:10;
+      background:rgba(0,0,0,.55);
+    }
+    #overlay.hidden{display:none}
+
+    .panel{
+      width:min(520px,90vw);
+      background:var(--panel-bg);
+      border:1px solid rgba(255,255,255,.25);
+      border-radius:16px;
+      padding:18px 16px;
+      text-align:center;
+      box-shadow:0 16px 50px rgba(0,0,0,.5);
+    }
+    .title{font-size:20px;font-weight:900;margin:0 0 10px}
+    .sub{font-size:14px;opacity:.9;margin:0 0 12px;line-height:1.35}
+
+    #startBtn{
+      appearance:none;border:0;
+      border-radius:14px;
+      padding:14px 18px;
+      font-weight:900;
+      font-size:16px;
+      cursor:pointer;
+      background:rgba(255,255,255,.92);
+      color:#000;
+      width:100%;
     }
 
-    #scoreBox {
-      font-size: 16px;
-      font-weight: 700;
-      background: rgba(0,0,0,0.35);
-      padding: 8px 10px;
-      border-radius: 10px;
-    }
+    .help{margin-top:10px;font-size:12px;opacity:.85;line-height:1.35}
 
-    /* Start overlay */
-    #overlay {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      z-index: 10;
-      background: rgba(0,0,0,0.55);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      color: #fff;
+    #result{
+      margin-top:14px;
+      display:none;
+      border-top:1px solid rgba(255,255,255,.2);
+      padding-top:12px;
+      text-align:left;
+      font-size:14px;
+      line-height:1.45;
+      white-space:pre-wrap;
     }
-
-    #overlay.hidden {
-      display: none;
-    }
-
-    .panel {
-      width: min(520px, 90vw);
-      background: rgba(0,0,0,0.55);
-      border: 1px solid rgba(255,255,255,0.25);
-      border-radius: 16px;
-      padding: 18px 16px;
-      text-align: center;
-      box-shadow: 0 16px 50px rgba(0,0,0,0.5);
-    }
-
-    .title {
-      font-size: 20px;
-      font-weight: 800;
-      margin-bottom: 10px;
-    }
-
-    .sub {
-      font-size: 14px;
-      opacity: 0.9;
-      margin-bottom: 12px;
-      line-height: 1.35;
-    }
-
-    #startBtn {
-      appearance: none;
-      border: none;
-      border-radius: 14px;
-      padding: 14px 18px;
-      font-weight: 800;
-      font-size: 16px;
-      cursor: pointer;
-      background: rgba(255,255,255,0.92);
-      color: #000;
-      width: 100%;
-    }
-
-    .help {
-      margin-top: 10px;
-      font-size: 12px;
-      opacity: 0.85;
-      line-height: 1.35;
-    }
-
-    /* Result modal */
-    #result {
-      margin-top: 14px;
-      display: none;
-      border-top: 1px solid rgba(255,255,255,0.2);
-      padding-top: 12px;
-      text-align: left;
-      font-size: 14px;
-      line-height: 1.45;
-      white-space: pre-wrap;
-    }
-    #result.show {
-      display: block;
-    }
+    #result.show{display:block}
+    #resultPhrase{margin-top:8px;font-weight:900}
   </style>
 </head>
 
@@ -199,35 +153,26 @@
 
     <div id="hud">
       <div id="scoreBox">Score: <span id="score">0</span> / <span id="total">0</span></div>
-      <div id="hint" style="opacity:0.9;font-size:12px;background:rgba(0,0,0,0.35);padding:8px 10px;border-radius:10px;">
-        PC: A / D · Mobile: tap left / right
-      </div>
+      <div id="hint">PC: A / D · Mobile: tap left / right</div>
     </div>
 
-    <div id="lane-left" class="lane">
-      <div class="hit-circle"></div>
-    </div>
-
-    <div id="lane-right" class="lane">
-      <div class="hit-circle"></div>
-    </div>
+    <div id="lane-left" class="lane"><div class="hit-circle"></div></div>
+    <div id="lane-right" class="lane"><div class="hit-circle"></div></div>
 
     <div id="overlay">
       <div class="panel">
         <div class="title">Rhythm Racer</div>
-        <div class="sub">
-          One Start button.<br/>
-          Start will play video + audio (mobile-friendly).
-        </div>
+        <div class="sub">Press Start to play video + audio.</div>
         <button id="startBtn">Start</button>
+
         <div class="help">
-          Controls:<br/>
-          • PC: press <b>A</b> (left) and <b>D</b> (right)<br/>
-          • Mobile: tap left/right half of the screen
+          PC: <b>A</b> (left), <b>D</b> (right)<br/>
+          Mobile: tap left/right half
         </div>
+
         <div id="result">
           <div id="resultLine"></div>
-          <div id="resultPhrase" style="margin-top:8px;font-weight:800;"></div>
+          <div id="resultPhrase"></div>
         </div>
       </div>
     </div>
