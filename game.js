@@ -1,107 +1,153 @@
+// game.js
 /*************************************************
- * RHYTHM RACER - MOBILE AUDIO SAFE VERSION
+ * RHYTHM RACER - SIMPLE MOBILE + PC
  *
- * Key mobile rule:
- * - Start video on a user gesture (tap).
- * - Unmute MUST be triggered by an explicit user gesture (button tap).
+ * Goals:
+ * 1) ONLY ONE START BUTTON (no unmute button)
+ * 2) Start button gesture starts BOTH video + audio
+ * 3) Beat timing stays tied to video.currentTime
+ * 4) You can paste your own beatmap
  *************************************************/
 
-const FALL_TIME = 1.6;      // seconds for a beat to fall
-const HIT_WINDOW = 0.15;    // hit tolerance (seconds)
+/* =====================
+   CONFIG
+===================== */
 
-const BEATMAP = [
-  // Paste your beatmap here:
-  // { time: 5.561, lane: 1 },
-];
+// Time (seconds) for a beat to travel from spawn point to the hit circle center
+const FALL_TIME = 1.6;
 
-const game = document.getElementById("game");
-const video = document.getElementById("video");
-const overlay = document.getElementById("overlay");
-const startBtn = document.getElementById("startBtn");
-const unmuteBtn = document.getElementById("unmuteBtn");
-const pointsEl = document.getElementById("points");
+// Hit tolerance window (seconds)
+const HIT_WINDOW = 0.15;
 
-const lanes = [
-  document.getElementById("lane-left"),
-  document.getElementById("lane-right")
-];
+// How long after the scheduled time before we auto-remove a beat (miss cleanup)
+const MISS_CLEANUP_AFTER = 0.35;
 
-let started = false;
-let beatIndex = 0;
-let activeBeats = [];
-let points = 0;
+// Score per successful hit (simple points only)
+const POINTS_PER_HIT = 1;
 
-// --- Set your file name here ---
-video.src = "race.mp4";
-video.preload = "auto";
-
-// iOS sometimes requires this too:
-video.setAttribute("playsinline", "");
-video.setAttribute("webkit-playsinline", "");
-
-// Start muted first for max compatibility (we unmute via button)
-video.muted = true;
-video.volume = 1.0;
-
-function setPoints(v) {
-  points = v;
-  pointsEl.textContent = `Points: ${points}`;
-}
+// Video file (must exist in same folder)
+const VIDEO_FILE = "race.mp4";
 
 /* =====================
-   START FLOW
-   - Start video (muted) on START tap
+   BEATMAP
+   👉 Paste your beatmap here
+   lane: 0 = left, 1 = right
+===================== */
+
+const BEATMAP = [
+  // Example entries:
+  // { time: 5.561, lane: 1 },
+  // { time: 6.240, lane: 0 },
+];
+
+/* =====================
+   DOM REFERENCES
+===================== */
+const game = document.getElementById("game");
+const video = document.getElementById("video");
+const lanes = [
+  document.getElementById("lane-left"),
+  document.getElementById("lane-right"),
+];
+
+const overlay = document.getElementById("overlay");
+const startBtn = document.getElementById("startBtn");
+
+const scoreEl = document.getElementById("score");
+const result = document.getElementById("result");
+const resultLine = document.getElementById("resultLine");
+
+/* =====================
+   STATE
+===================== */
+let started = false;
+let beatIndex = 0;
+let activeBeats = []; // { el, time, lane }
+let score = 0;
+
+/* =====================
+   LOAD VIDEO
+===================== */
+video.src = VIDEO_FILE;
+// Important: do NOT force muted in HTML.
+// We'll set muted=false and call play() inside the Start button gesture.
+
+/* =====================
+   START BUTTON (ONE BUTTON ONLY)
+   - On mobile, audio is allowed ONLY if play() happens
+     right inside a user gesture (tap/click).
 ===================== */
 startBtn.addEventListener("click", async () => {
   if (started) return;
   started = true;
 
-  try {
-    // Play (muted) so motion starts even if audio is blocked
-    await video.play();
-    overlay.classList.add("hidden");
-    requestAnimationFrame(gameLoop);
-  } catch (e) {
-    // If play fails, keep overlay visible
-    console.warn("Video play failed:", e);
-  }
-});
+  // Reset game state (useful if you later add "restart")
+  beatIndex = 0;
+  activeBeats = [];
+  score = 0;
+  scoreEl.textContent = "0";
+  result.classList.remove("show");
 
-/* =====================
-   UNMUTE FLOW (mobile crucial)
-   - Must be a direct user tap
-===================== */
-unmuteBtn.addEventListener("click", async () => {
   try {
+    // KEY: set audio ON before play() inside this gesture
     video.muted = false;
     video.volume = 1.0;
 
-    // Re-call play() after unmuting; some phones need this
+    // Attempt to start audio+video together
     await video.play();
-  } catch (e) {
-    console.warn("Unmute/play failed:", e);
+
+    // Hide overlay only after playback begins
+    overlay.classList.add("hidden");
+
+    requestAnimationFrame(gameLoop);
+  } catch (err) {
+    // If something blocks it, we log it so you can debug on mobile.
+    console.warn("Playback blocked on Start:", err);
+
+    // As a fallback, try starting muted (rare on modern devices)
+    // (Still keeps "one button" UX; no unmute button shown.)
+    try {
+      video.muted = true;
+      await video.play();
+      overlay.classList.add("hidden");
+      requestAnimationFrame(gameLoop);
+    } catch (err2) {
+      console.error("Still blocked even when muted:", err2);
+      // If this happens, the device/browser is extremely restrictive.
+      // The user can try tapping again; we keep the overlay visible.
+      started = false;
+    }
   }
 });
 
 /* =====================
-   MOBILE CONTROLS
-   Tap left/right side of screen after start
+   INPUT (PC + MOBILE)
+
+   PC:
+     - A = left lane hit
+     - D = right lane hit
+
+   Mobile:
+     - Tap LEFT half of screen = left hit
+     - Tap RIGHT half of screen = right hit
 ===================== */
-game.addEventListener("pointerdown", (ev) => {
+
+// Keyboard (PC)
+window.addEventListener("keydown", (e) => {
   if (!started) return;
 
-  // If user never pressed UNMUTE, try again on the first gameplay tap
-  // (still won’t always work on iOS unless they hit UNMUTE button,
-  // but it helps on Android Chrome)
-  if (video.muted) {
-    // Best-effort attempt; no harm if blocked
-    video.muted = false;
-    video.play().catch(() => {});
-  }
+  const k = e.key.toLowerCase();
+  if (k === "a") handleHit(0);
+  if (k === "d") handleHit(1);
+});
 
-  const x = ev.clientX;
-  const w = window.innerWidth;
-  const lane = x < w / 2 ? 0 : 1;
+// Tap/click screen (mobile + desktop)
+game.addEventListener("pointerdown", (e) => {
+  // IMPORTANT: Don't allow hits before starting (prevents "tap start" also hitting)
+  if (!started || video.paused) return;
+
+  const x = e.clientX;
+  const lane = x < window.innerWidth / 2 ? 0 : 1;
   handleHit(lane);
 });
 
@@ -113,95 +159,121 @@ function gameLoop() {
 
   spawnBeats(t);
   updateBeats(t);
+  cleanupMisses(t);
 
-  // End condition
-  if (video.ended) {
-    started = false;
-    showEndMessage();
+  // End of video -> show results
+  if (video.ended || (video.duration && t >= video.duration - 0.02)) {
+    showResult();
     return;
   }
 
-  requestAnimationFrame(gameLoop);
+  if (!video.paused) requestAnimationFrame(gameLoop);
 }
 
 /* =====================
-   SPAWN
+   SPAWN LOGIC
+   We spawn a beat FALL_TIME seconds BEFORE its hit time.
 ===================== */
 function spawnBeats(t) {
-  while (beatIndex < BEATMAP.length && BEATMAP[beatIndex].time - t <= FALL_TIME) {
+  while (beatIndex < BEATMAP.length && (BEATMAP[beatIndex].time - t) <= FALL_TIME) {
     createBeat(BEATMAP[beatIndex]);
     beatIndex++;
   }
 }
 
+/* =====================
+   CREATE BEAT ELEMENT
+===================== */
 function createBeat(data) {
   const beat = document.createElement("div");
   beat.className = "beat";
+
   lanes[data.lane].appendChild(beat);
 
   activeBeats.push({
     el: beat,
     time: data.time,
-    lane: data.lane
+    lane: data.lane,
   });
 }
 
 /* =====================
-   UPDATE POSITIONS
-   Beat falls so it reaches hit-circle center at data.time
+   UPDATE BEATS VISUALLY
+   - We read the hit-circle position dynamically.
+   - So you can move hit-circle in CSS and timing remains correct.
 ===================== */
 function updateBeats(t) {
-  for (let i = activeBeats.length - 1; i >= 0; i--) {
-    const b = activeBeats[i];
+  // Note: we avoid splicing in this loop; cleanup happens separately.
+  for (const b of activeBeats) {
     const laneEl = lanes[b.lane];
     const hit = laneEl.querySelector(".hit-circle");
 
     const laneRect = laneEl.getBoundingClientRect();
     const hitRect = hit.getBoundingClientRect();
 
-    // Y target (center of hit circle) relative to lane
-    const hitY = (hitRect.top - laneRect.top) + hitRect.height / 2;
+    // Y position (within the lane) where the beat should land (center of hit circle)
+    const hitY = (hitRect.top - laneRect.top) + (hitRect.height / 2);
 
+    // progress = 0 at spawn time, 1 at hit time
     const progress = 1 - (b.time - t) / FALL_TIME;
 
-    // Miss cleanup
-    if (progress > 1.25) {
-      b.el.remove();
-      activeBeats.splice(i, 1);
-      continue;
-    }
+    // Clamp a bit so it doesn't go negative
+    const clamped = Math.max(0, progress);
 
-    // Move from top (0) down to hitY
-    b.el.style.top = `${Math.max(0, hitY * progress)}px`;
+    // Interpolate from top (0px) -> hitY px
+    b.el.style.top = `${hitY * clamped}px`;
   }
 }
 
 /* =====================
-   HIT
-   - Must match lane + timing window
+   MISS CLEANUP
+   - If the beat is too far past its hit time, remove it.
 ===================== */
-function handleHit(inputLane) {
-  const t = video.currentTime;
-
-  for (let i = 0; i < activeBeats.length; i++) {
+function cleanupMisses(t) {
+  for (let i = activeBeats.length - 1; i >= 0; i--) {
     const b = activeBeats[i];
-
-    if (b.lane !== inputLane) continue;
-
-    if (Math.abs(b.time - t) <= HIT_WINDOW) {
+    if (t > b.time + MISS_CLEANUP_AFTER) {
       b.el.remove();
       activeBeats.splice(i, 1);
-      setPoints(points + 1);
+    }
+  }
+}
+
+/* =====================
+   HIT DETECTION (simple points)
+   - Match lane
+   - Must be within HIT_WINDOW of scheduled time
+===================== */
+function handleHit(lane) {
+  const t = video.currentTime;
+
+  // Find the earliest hittable beat in that lane
+  for (let i = 0; i < activeBeats.length; i++) {
+    const b = activeBeats[i];
+    if (b.lane !== lane) continue;
+
+    if (Math.abs(b.time - t) <= HIT_WINDOW) {
+      // Successful hit
+      b.el.remove();
+      activeBeats.splice(i, 1);
+
+      score += POINTS_PER_HIT;
+      scoreEl.textContent = String(score);
       return;
     }
   }
 }
 
 /* =====================
-   END MESSAGE (simple)
+   END RESULT
 ===================== */
-function showEndMessage() {
-  overlay.classList.remove("hidden");
-  overlay.querySelector(".title").textContent = "Finished!";
-  overlay.querySelector(".sub").innerHTML = `Final Points: <b>${points}</b>`;
+function showResult() {
+  // Pause to stop loop safely
+  video.pause();
+
+  const totalBeats = BEATMAP.length;
+  const msg = `Score: ${score} / ${totalBeats}`;
+
+  resultLine.textContent = msg;
+  result.classList.add("show");
 }
