@@ -21,12 +21,7 @@
       user-select: none;
     }
 
-    #game {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-    }
+    #game { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
 
     video {
       position: absolute;
@@ -37,7 +32,6 @@
       background: black;
     }
 
-    /* HUD */
     #hud {
       position: absolute;
       top: 12px;
@@ -46,12 +40,10 @@
       color: #fff;
       font-family: system-ui, Arial, sans-serif;
       font-size: 18px;
-      line-height: 1.2;
       text-shadow: 0 2px 6px rgba(0,0,0,0.8);
       pointer-events: none;
     }
 
-    /* Start Overlay */
     #overlay {
       position: absolute;
       inset: 0;
@@ -68,17 +60,8 @@
       padding: 20px;
     }
 
-    #overlay .title {
-      font-size: 28px;
-      font-weight: 700;
-    }
-
-    #overlay .hint {
-      font-size: 14px;
-      opacity: 0.9;
-      max-width: 460px;
-    }
-
+    #overlay .title { font-size: 28px; font-weight: 700; }
+    #overlay .hint { font-size: 14px; opacity: 0.9; max-width: 460px; }
     #overlay .error {
       margin-top: 10px;
       font-size: 14px;
@@ -88,18 +71,10 @@
       opacity: 0.95;
     }
 
-    /* Lanes */
-    .lane {
-      position: absolute;
-      top: 0;
-      width: 50%;
-      height: 100%;
-    }
-
+    .lane { position: absolute; top: 0; width: 50%; height: 100%; }
     #lane-left { left: 0; }
     #lane-right { right: 0; }
 
-    /* Hit circles */
     .hit-circle {
       position: absolute;
       width: 100px;
@@ -111,7 +86,6 @@
       bottom: 15%;
     }
 
-    /* Falling beats */
     .beat {
       position: absolute;
       width: 60px;
@@ -127,7 +101,8 @@
 
 <body>
   <div id="game">
-    <video id="video" playsinline muted preload="auto"></video>
+    <!-- IMPORTANT: no "muted" here -->
+    <video id="video" playsinline preload="auto"></video>
 
     <div id="hud">
       <div id="points">Points: 0</div>
