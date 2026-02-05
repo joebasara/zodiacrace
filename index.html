@@ -1,177 +1,192 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Rhythm Racer</title>
+<meta charset="UTF-8" />
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, user-scalable=no"
+/>
 
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: black;
-      touch-action: none;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    }
+<title>Rhythm Racer</title>
 
-    /* =====================
-       GAME CONTAINER
-    ===================== */
-    #game {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-    }
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: black;
+  touch-action: none;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
-    /* =====================
-       VIDEO BACKGROUND
-    ===================== */
-    video {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: black;
-    }
+/* =====================
+   GAME CONTAINER
+===================== */
+#game {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
 
-    /* =====================
-       LANES
-    ===================== */
-    .lane {
-      position: absolute;
-      top: 0;
-      width: 40%;
-      height: 100%;
-      pointer-events: none; /* beats & hit circle shouldn't block taps */
-    }
+/* =====================
+   VIDEO (BOTTOM LAYER)
+   CRITICAL for mobile
+===================== */
+video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0; /* 👈 MUST be lowest */
+}
 
-    #lane-left { left: 0; }
-    #lane-right { right: 0; }
+/* =====================
+   LANES
+===================== */
+.lane {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  z-index: 2; /* 👈 above video */
+  pointer-events: none;
+}
 
-    /* =====================
-       HIT CIRCLES
-       - 30% smaller
-       - Lower on screen
-    ===================== */
-    .hit-circle {
-      position: absolute;
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.3);
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 15%;
-      pointer-events: none;
-    }
+#lane-left { left: 0; }
+#lane-right { right: 0; }
 
-    /* =====================
-       FALLING BEATS
-    ===================== */
-    .beat {
-      position: absolute;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: white;
-      left: 50%;
-      transform: translateX(-50%);
-      pointer-events: none;
-    }
+/* =====================
+   HIT CIRCLES
+===================== */
+.hit-circle {
+  position: absolute;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25);
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 15%;
+}
 
-    /* =====================
-       UI OVERLAY (Start + Score)
-    ===================== */
-    #overlay {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      background: rgba(0,0,0,0.45);
-      z-index: 10;
-    }
+/* =====================
+   FALLING BEATS
+===================== */
+.beat {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: white;
+  left: 50%;
+  transform: translate3d(-50%, 0, 0);
+  will-change: transform, top;
+  z-index: 3; /* 👈 ensures visibility on mobile */
+}
 
-    #overlay.hidden { display: none; }
+/* =====================
+   OVERLAY (START)
+===================== */
+#overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-    #startBtn {
-      font-size: 18px;
-      padding: 14px 18px;
-      border-radius: 12px;
-      border: 0;
-      background: rgba(255,255,255,0.92);
-      color: #111;
-    }
+#overlay.hidden {
+  display: none;
+}
 
-    #scoreHud {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 11;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: rgba(0,0,0,0.45);
-      color: white;
-      font-weight: 600;
-      user-select: none;
-      -webkit-user-select: none;
-    }
+#startBtn {
+  font-size: 22px;
+  padding: 16px 28px;
+  border-radius: 14px;
+  border: none;
+  background: white;
+  color: black;
+  font-weight: 700;
+}
 
-    #result {
-      position: absolute;
-      inset: 0;
-      display: none;
-      place-items: center;
-      z-index: 12;
-      background: rgba(0,0,0,0.55);
-      color: white;
-      text-align: center;
-      padding: 24px;
-    }
+/* =====================
+   SCORE
+===================== */
+#scoreBox {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  color: white;
+  font-size: 18px;
+}
 
-    #result.show { display: grid; }
+/* =====================
+   RESULT
+===================== */
+#result {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
 
-    #result h1 { margin: 0 0 8px; font-size: 28px; }
-    #result p { margin: 0; font-size: 18px; opacity: 0.95; }
-  </style>
+#result.show {
+  display: flex;
+}
+
+#resultLine {
+  font-size: 22px;
+  margin-top: 12px;
+}
+</style>
 </head>
 
 <body>
-  <div id="game">
-    <!-- IMPORTANT:
-         - Do NOT add "muted" in HTML
-         - We'll start audio+video together on the Start button gesture in JS -->
-    <video id="video" playsinline preload="auto"></video>
 
-    <div id="scoreHud">Score: <span id="score">0</span></div>
+<div id="game">
 
-    <div id="lane-left" class="lane">
-      <div class="hit-circle"></div>
-    </div>
+  <!-- VIDEO -->
+  <video id="video" playsinline></video>
 
-    <div id="lane-right" class="lane">
-      <div class="hit-circle"></div>
-    </div>
-
-    <!-- Single Start overlay -->
-    <div id="overlay">
-      <button id="startBtn">START</button>
-    </div>
-
-    <!-- End screen -->
-    <div id="result">
-      <div>
-        <h1 id="resultTitle">Finished!</h1>
-        <p id="resultLine">Score: 0</p>
-      </div>
-    </div>
+  <!-- LANES -->
+  <div id="lane-left" class="lane">
+    <div class="hit-circle"></div>
   </div>
 
-  <script src="game.js"></script>
+  <div id="lane-right" class="lane">
+    <div class="hit-circle"></div>
+  </div>
+
+  <!-- SCORE -->
+  <div id="scoreBox">
+    Score: <span id="score">0</span>
+  </div>
+
+  <!-- START OVERLAY -->
+  <div id="overlay">
+    <button id="startBtn">START</button>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result">
+    <div id="resultLine"></div>
+  </div>
+
+</div>
+
+<script src="game.js"></script>
 </body>
 </html>
