@@ -1,148 +1,163 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, user-scalable=no"
-  />
-  <title>Rhythm Racer</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Rhythm Racer</title>
 
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background: black;
-      overflow: hidden;
-      touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
-    }
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: black;
+    touch-action: none;
+  }
 
-    #game { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  #game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: black;
+  }
 
-    video {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: black;
-    }
+  video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: black;
+    z-index: 0;
+  }
 
-    #hud {
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      z-index: 50;
-      color: #fff;
-      font-family: system-ui, Arial, sans-serif;
-      font-size: 18px;
-      text-shadow: 0 2px 6px rgba(0,0,0,0.8);
-      pointer-events: none;
-    }
+  /* Lanes/UI */
+  .lane {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    z-index: 2; /* keep above video */
+  }
+  #lane-left { left: 0; }
+  #lane-right { right: 0; }
 
-    /* Unmute button (only appears if browser forces muted) */
-    #unmuteBtn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 60;
-      border: 0;
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 14px;
-      font-family: system-ui, Arial, sans-serif;
-      background: rgba(255,255,255,0.9);
-      color: #000;
-      cursor: pointer;
-      display: none;
-    }
+  .hit-circle {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 15%;
+  }
 
-    #overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 10px;
-      color: white;
-      font-family: system-ui, Arial, sans-serif;
-      background: rgba(0,0,0,0.55);
-      text-align: center;
-      padding: 20px;
-    }
+  .beat {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: white;
+    left: 50%;
+    transform: translateX(-50%);
+  }
 
-    #overlay .title { font-size: 28px; font-weight: 700; }
-    #overlay .hint { font-size: 14px; opacity: 0.9; max-width: 460px; }
-    #overlay .error {
-      margin-top: 10px;
-      font-size: 14px;
-      color: #ffd2d2;
-      white-space: pre-wrap;
-      max-width: 460px;
-      opacity: 0.95;
-    }
+  /* Overlay */
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    z-index: 5;
+    background: rgba(0,0,0,0.35);
+    color: white;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    text-align: center;
+    padding: 24px;
+  }
+  #overlay.hidden { display: none; }
 
-    .lane { position: absolute; top: 0; width: 50%; height: 100%; }
-    #lane-left { left: 0; }
-    #lane-right { right: 0; }
+  .title {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 10px;
+  }
+  .sub {
+    opacity: 0.9;
+    line-height: 1.4;
+    margin-bottom: 18px;
+    font-size: 14px;
+  }
 
-    .hit-circle {
-      position: absolute;
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.35);
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 15%;
-    }
+  .btnRow {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  button {
+    appearance: none;
+    border: 0;
+    border-radius: 14px;
+    padding: 12px 16px;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  #startBtn { background: white; color: black; }
+  #unmuteBtn { background: #22c55e; color: black; }
+  #hint {
+    margin-top: 14px;
+    font-size: 12px;
+    opacity: 0.8;
+  }
 
-    .beat {
-      position: absolute;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: white;
-      left: 50%;
-      transform: translateX(-50%);
-      will-change: top;
-    }
-  </style>
+  /* Points */
+  #points {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 6;
+    color: white;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  }
+</style>
 </head>
 
 <body>
-  <div id="game">
-    <!-- IMPORTANT: no muted attribute -->
-    <video id="video" playsinline preload="auto"></video>
+<div id="game">
+  <div id="points">Points: 0</div>
 
-    <div id="hud">
-      <div id="points">Points: 0</div>
-    </div>
+  <!-- IMPORTANT:
+       - NO "muted" attribute here (mobile audio needs explicit unmute)
+       - playsinline helps iOS stay in-page -->
+  <video id="video" playsinline preload="auto"></video>
 
-    <button id="unmuteBtn">🔊 Unmute</button>
+  <div id="lane-left" class="lane"><div class="hit-circle"></div></div>
+  <div id="lane-right" class="lane"><div class="hit-circle"></div></div>
 
-    <div id="overlay">
-      <div class="title">Click / Tap to Start</div>
-      <div class="hint">PC: A = Left, D = Right · Mobile: Tap left/right side</div>
-      <div class="hint">Video must be in SAME folder. Default filename: <b>race.mp4</b></div>
-      <div id="error" class="error"></div>
-    </div>
-
-    <div id="lane-left" class="lane">
-      <div class="hit-circle"></div>
-    </div>
-
-    <div id="lane-right" class="lane">
-      <div class="hit-circle"></div>
+  <div id="overlay">
+    <div>
+      <div class="title">Tap to Start</div>
+      <div class="sub">
+        Mobile: tap left/right side.<br/>
+        If there’s no sound, tap <b>UNMUTE</b>.
+      </div>
+      <div class="btnRow">
+        <button id="startBtn">START</button>
+        <button id="unmuteBtn">UNMUTE</button>
+      </div>
+      <div id="hint">Keep <code>race.mp4</code> in the same folder as this page.</div>
     </div>
   </div>
+</div>
 
-  <script src="game.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
