@@ -15,10 +15,10 @@
 ===================== */
 
 // Time (seconds) for a beat to travel from spawn point to hit circle
-const FALL_TIME = 2.0;
+const FALL_TIME = 2.4;
 
 // controls WHEN circles appear (earlier), not speed
-const SPAWN_LEAD_TIME = 3.2; // controls WHEN circles appear (earlier), not speed
+const SPAWN_LEAD_TIME = 3.4; // controls WHEN circles appear (earlier), not speed
 
 // Hit tolerance window (seconds)
 const HIT_WINDOW = 0.15;
@@ -683,6 +683,7 @@ function showResult() {
 
   result.classList.add("show");
 }
+
 
 
 
