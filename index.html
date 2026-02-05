@@ -1,165 +1,238 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport"
-  content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, user-scalable=no"
+  />
+  <title>Rhythm Racer</title>
 
-<title>Rhythm Racer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      touch-action: none; /* prevents scroll/zoom gestures from eating taps */
+      -webkit-user-select: none;
+      user-select: none;
+    }
 
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background: black;
-  overflow: hidden;
-  touch-action: none;
-  font-family: system-ui, sans-serif;
-}
+    #game {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+    }
 
-/* GAME CONTAINER */
-#game {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-}
+    /* Video background */
+    #video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+    }
 
-/* VIDEO */
-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+    /* Lanes */
+    .lane {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 50%;
+      pointer-events: none; /* beats/hit circles don't block taps */
+    }
+    #lane-left { left: 0; }
+    #lane-right { right: 0; }
 
-/* LANES */
-.lane {
-  position: absolute;
-  top: 0;
-  width: 40%;
-  height: 100%;
-}
-#lane-left { left: 0; }
-#lane-right { right: 0; }
+    /* Hit circles (visible guides)
+       You asked: shift higher (between middle and bottom).
+       Adjust HIT_CIRCLE_BOTTOM in game.js if you want, but CSS defines the base look. */
+    .hit-circle {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(18vw, 110px);
+      height: min(18vw, 110px);
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.55);
+      background: rgba(255,255,255,0.10);
+      bottom: 30%; /* higher than the old 15%; easier for thumbs */
+      box-sizing: border-box;
+    }
 
-/* HIT ZONE (comfortable for thumbs) */
-.hit-circle {
-  position: absolute;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.25);
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 28%;
-}
+    /* Flash the hit-circle when a hit happens */
+    .hit-circle.flash {
+      background: rgba(255, 255, 0, 0.35);
+      border-color: rgba(255, 255, 0, 0.85);
+    }
 
-/* BEATS */
-.beat {
-  position: absolute;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: white;
-  left: 50%;
-  transform: translateX(-50%) scale(1);
-  will-change: transform, opacity, background;
-}
+    /* Falling beats */
+    .beat {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(12vw, 70px);
+      height: min(12vw, 70px);
+      border-radius: 50%;
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      will-change: transform, top;
+    }
 
-/* HIT FEEDBACK */
-.beat.hit {
-  background: gold !important;
-  animation: hitPulse 120ms ease-out forwards;
-}
+    /* Beat turns yellow on hit (briefly) */
+    .beat.hit {
+      background: rgba(255, 255, 0, 0.95);
+    }
 
-@keyframes hitPulse {
-  0%   { transform: translateX(-50%) scale(1);   opacity: 1; }
-  60%  { transform: translateX(-50%) scale(1.12); opacity: 1; }
-  100% { transform: translateX(-50%) scale(0.9);  opacity: 0; }
-}
+    /* HUD */
+    #hud {
+      position: absolute;
+      top: env(safe-area-inset-top, 0);
+      left: env(safe-area-inset-left, 0);
+      right: env(safe-area-inset-right, 0);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      gap: 12px;
+      z-index: 4;
+      pointer-events: none; /* keep game taps working */
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: #fff;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+    }
 
-/* SCORE */
-#score {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: white;
-  font-size: 18px;
-  z-index: 5;
-}
+    #scoreBox {
+      font-size: 16px;
+      font-weight: 700;
+      background: rgba(0,0,0,0.35);
+      padding: 8px 10px;
+      border-radius: 10px;
+    }
 
-/* OVERLAY */
-#overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
-}
+    /* Start overlay */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 10;
+      background: rgba(0,0,0,0.55);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: #fff;
+    }
 
-#overlay.hidden {
-  display: none;
-}
+    #overlay.hidden {
+      display: none;
+    }
 
-#startBtn {
-  font-size: 20px;
-  padding: 14px 28px;
-  border: none;
-  border-radius: 8px;
-  background: gold;
-  color: black;
-}
+    .panel {
+      width: min(520px, 90vw);
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 16px;
+      padding: 18px 16px;
+      text-align: center;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.5);
+    }
 
-/* RESULT */
-#result {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  color: white;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  z-index: 20;
-}
+    .title {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
 
-#result.show {
-  display: flex;
-}
-</style>
+    .sub {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 12px;
+      line-height: 1.35;
+    }
+
+    #startBtn {
+      appearance: none;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 18px;
+      font-weight: 800;
+      font-size: 16px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.92);
+      color: #000;
+      width: 100%;
+    }
+
+    .help {
+      margin-top: 10px;
+      font-size: 12px;
+      opacity: 0.85;
+      line-height: 1.35;
+    }
+
+    /* Result modal */
+    #result {
+      margin-top: 14px;
+      display: none;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      padding-top: 12px;
+      text-align: left;
+      font-size: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+    #result.show {
+      display: block;
+    }
+  </style>
 </head>
 
 <body>
+  <div id="game">
+    <video id="video" playsinline></video>
 
-<div id="game">
-  <video id="video" playsinline></video>
+    <div id="hud">
+      <div id="scoreBox">Score: <span id="score">0</span> / <span id="total">0</span></div>
+      <div id="hint" style="opacity:0.9;font-size:12px;background:rgba(0,0,0,0.35);padding:8px 10px;border-radius:10px;">
+        PC: A / D · Mobile: tap left / right
+      </div>
+    </div>
 
-  <div id="lane-left" class="lane">
-    <div class="hit-circle"></div>
+    <div id="lane-left" class="lane">
+      <div class="hit-circle"></div>
+    </div>
+
+    <div id="lane-right" class="lane">
+      <div class="hit-circle"></div>
+    </div>
+
+    <div id="overlay">
+      <div class="panel">
+        <div class="title">Rhythm Racer</div>
+        <div class="sub">
+          One Start button.<br/>
+          Start will play video + audio (mobile-friendly).
+        </div>
+        <button id="startBtn">Start</button>
+        <div class="help">
+          Controls:<br/>
+          • PC: press <b>A</b> (left) and <b>D</b> (right)<br/>
+          • Mobile: tap left/right half of the screen
+        </div>
+        <div id="result">
+          <div id="resultLine"></div>
+          <div id="resultPhrase" style="margin-top:8px;font-weight:800;"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div id="lane-right" class="lane">
-    <div class="hit-circle"></div>
-  </div>
-
-  <div id="score">0</div>
-
-  <div id="overlay">
-    <button id="startBtn">START</button>
-  </div>
-
-  <div id="result">
-    <h2 id="resultLine"></h2>
-  </div>
-</div>
-
-<script src="game.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>
